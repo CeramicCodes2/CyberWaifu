@@ -1,0 +1,6 @@
+{
+    "backend": "gpt4all",
+    "vectorStorageBackend": "Chomadb",
+    "use_vectorStoragedb": false,
+    "use_summarysation": true
+}

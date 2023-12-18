@@ -61,6 +61,7 @@ class Utils:
 
     def get_gpt_json(self, txt):
         txt = self.url_text_encode(txt)
+        # codifica por usar una peticion get envia los datos de esa forma
         url = settings['gpt'] + '/' + txt
         try:
             r = requests.get(url=url)

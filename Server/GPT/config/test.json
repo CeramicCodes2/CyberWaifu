@@ -1,0 +1,19 @@
+{
+    "conversation": true,
+    "sentence": true,
+    "no_lf": true,
+    "no_prompt": true,
+    "answer_only": false,
+    "length": 12,
+    "translator": "google",
+    "google_trans": {
+        "trans_ipt": "zh",
+        "trans_opt": "zh",
+        "trans_opt2": "jpn"
+    },
+    "baidu_trans": {
+        "trans_ipt": "zh",
+        "trans_opt": "zh",
+        "trans_opt2": "jp"
+    }
+}

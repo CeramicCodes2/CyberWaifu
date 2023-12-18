@@ -6,10 +6,10 @@ from flask import Flask
 # from flask import request
 from markupsafe import escape
 from translatepy.translators.google import GoogleTranslate
-
+from models import ModelLoader,ChatBotSettings,Settings,Google_trans,Baidu_trans
 
 class Config:
-    config_files = {'settings': 'config/settings.json', 'api': 'config/api.json'}
+    config_files = {'settings': 'config/settings.json', 'api': 'config/api.json','bot_settings':'config/ChatBotSettings.json'}
     dicts = {'settings': {}, 'api': {}}
 
     def __init__(self):
@@ -127,6 +127,122 @@ class Utils:
         else:
             return text
 
+class ChatBot:
+    '''
+    available backend -> [
+        gpt4all,
+        transformers,
+        oobabooga_API
+    ]    
+    '''
+    def __init__(self,prompt:str):
+        with ModelLoader("bot_settings.json",ChatBotSettings) as model:
+            self._model = model
+        self._iteration:int = 1
+        # developent attrs
+        self.prompt = ""
+        self.sumarize = ""
+        self._txt = ""
+    @property
+    def txt(self):
+        return self._txt
+    @txt.setter
+    def txt(self,arg):
+        self._txt = arg
+    @txt.deleter
+    def txt(self):
+        self._txt = ""       
+    @property
+    def iteration(self) -> int:
+        return self._iteration
+    @property
+    def updateIteration(self):
+        ''' update the iteration '''
+        self._iteration += 1
+    @staticmethod
+    def pre_process_json(text):  # 预处理将被放入JSON的数据，使用urlsafe_base64编码
+        text = base64.urlsafe_b64encode(text.encode('UTF-8')).decode('UTF-8')
+        return text
+    def loadTransformerOldSettings(self):
+        with ModelLoader(configuration_name="test.json",ModelClass=Settings) as ml:
+            self._settings = ml
+        if getattr(self._settings,self._settings.translator+'_trans',None) is not None:  # 翻译输入
+            print(":: Translating input...")
+            self.prompt = utils.trans(self.prompt, 'ipt')
+            print(self.prompt)
+        if self._settings.conversation is True:  # 对话模式
+            self.prompt = "My friend asked me \"{}\", I answered: \"".format(self.prompt)
+    def useTransformerBackend(self):
+        """ 
+        this method will implement the old logic used in the original repository
+        and add the new features like Sumarization and basic memory
+        """
+        self.loadTransformerOldSettings()
+        
+        while True:
+            self.updateIteration
+            print(":: Generating...")
+            min_length = self._settings.length * i
+            max_length = self._settings.length * 2 * i
+            result = generator(self.prompt, do_sample=True, min_length=min_length, max_length=max_length)
+            txt_opt = result[0]['generated_text']
+            txt = txt_opt
+            if self._settings.sentence: # true
+                last_dot = txt.rfind('.')
+                if last_dot == -1:
+                    self.prompt = txt_opt
+                    continue
+                txt = txt[0:last_dot + 1]
+                # continue the generation if in the oration hasn't the first dot
+                
+            if self._settings.no_lf:  # 忽略换行 | ignore line break's
+                txt = txt.replace('\n', '')
+
+            if self._settings.no_prompt:  # 丢弃输出中的prompt
+                # "My friend asked me \"Hola como estas hoy ?\", I answered: \"bien y tu ?"
+                print(self.prompt)
+                print(txt)
+                txt = txt.replace(self.prompt, '')
+                # \"bien y tu ?"
+                quote = [txt.find('\"')]
+                if self._settings.answer_only:  # 仅保留回答内容 | solo conserva respuestas
+                    if quote[0] == -1:
+                        self.prompt = txt_opt
+                        continue
+                    txt = txt[0:quote[0]]
+                else:
+                    if quote[0] == -1:
+                        txt = txt
+                    else:
+                        txt = '\'' + txt
+            # tr = config.read('settings', config.read('settings', 'translator') + '-trans')['trans-opt']
+            tr:Google_trans | Baidu_trans = getattr(self._settings,self._settings.translator+'_trans',None)
+            if tr is not None:  # 翻译输出
+                print(":: Translating output to {}...".format(tr.trans_opt))
+                txt_trans = utils.trans(txt, 'opt')
+
+                #tr_2 = config.read('settings', config.read('settings', 'translator') + '-trans')['trans-opt2']
+                tr_2:Google_trans | Baidu_trans = getattr(self._settings,self._settings.translator+'_trans',None)
+                # check the other translation option
+                if tr_2 is not None:  # 翻译输出2
+                    print(":: Translating output to {}...".format(tr_2.trans_opt2))
+                    txt_trans_2 = utils.trans(txt, 'opt2')
+                    # 返回 JSON
+                    return json.dumps({
+                        "raw": self.pre_process_json(txt),
+                        tr: self.pre_process_json(txt_trans),
+                        tr_2: self.pre_process_json(txt_trans_2)
+                    })
+
+                # 返回 JSON
+                return json.dumps({
+                    "raw": self.pre_process_json(txt),
+                    tr: self.pre_process_json(txt_trans)
+
+                })
+            return json.dumps({
+            "raw": pre_process_json(txt)
+        })
 def process(prompt):
     # 前处理
     if config.read('settings', config.read('settings', 'translator') + '-trans')['trans-ipt'] is not None:  # 翻译输入
@@ -136,9 +252,9 @@ def process(prompt):
 
     if config.read('settings', 'conversation') is True:  # 对话模式
         prompt = "My friend asked me \"{}\", I answered: \"".format(prompt)
-
+    
+    #ChatBot().loadTransformerOldSettings()
     # 处理
-
     i = 1
     while True:
         i = i + 1
@@ -182,7 +298,7 @@ def process(prompt):
         def pre_process_json(text):  # 预处理将被放入JSON的数据，使用urlsafe_base64编码
             text = base64.urlsafe_b64encode(text.encode('UTF-8')).decode('UTF-8')
             return text
-
+        
         tr = config.read('settings', config.read('settings', 'translator') + '-trans')['trans-opt']
         if tr is not None:  # 翻译输出
             print(":: Translating output to {}...".format(tr))
@@ -222,10 +338,11 @@ def main():
     global config
     global utils
     global generator
-
+    
     config = Config()
     utils = Utils()
-
+    
+    #ChatBot().loadTransformerOldSettings()
     # print(":: Testing Google translate...")
     # print(utils.translate_google('hello', 'zh', 'eng'))
     # print(":: Testing Baidu translate...")
@@ -235,7 +352,7 @@ def main():
     from transformers import pipeline  # 导入模块
 
     print(":: Loading model...")
-    generator = pipeline('text-generation', model='model')  # 加载模型
+    generator = pipeline('text-generation', model=r'model/gpt-neo-125m')  # 加载模型
 
     app = Flask(__name__)
 
