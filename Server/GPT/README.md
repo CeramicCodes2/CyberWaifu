@@ -114,7 +114,13 @@ http://127.0.0.1:7210/<prompt>
     "jp": "44CM44GC44Gq44Gf44Gv56eB44KS56eB44Gu44KI44GG44Gr6KaL44Gb44KI44GG44Go44GZ44KL5aWz5oCn44Gn44GZ44CN44Gd44GX44Gm56eB44Gv5b285aWz44Gr44CM44GC44Gq44Gf44KC56eB44Gu6KiA44GG44GT44Go44KS6IGe44GE44Gm44GP44KM44KL44Go5oCd44GE44G-44GZ44CN44Go6KiA44Gj44Gf44CC5b285aWz44Gv44CM55CG6Kej44GX44Gm44GE44G-44GZ44CN44Go562U44GI44CB44Gd44GX44Gm56eB44Gf44Gh44Gv44CM44OI44Kk44Or44Gu5paw44GX44GE5aC05omA4oCm4oCm56eB44Gf44Gh44Gu5pel44CF44KS6YGO44GU44GX44G-44GZ44CN44Gr5byV44Gj6LaK44GX44Gf44CC"
 }
 ```
+## updates
+- [x] adicion de clases de datos modelo y una clase `ModelLoader` que cargara las configuraciones desde los archivos de configuracion
 
+## pendiente
+- [ ] crear plantilla para cargar modelos (usando jinja)
+- [ ] adicion de sumarizacion
+- [ ] adicion de una base de datos vectorial para almacenar valores y aumentar la memoria del modelo`` 
 ## References
 
 **[EleutherAI/gpt-neo-125M · Hugging Face](https://huggingface.co/EleutherAI/gpt-neo-125M)**
