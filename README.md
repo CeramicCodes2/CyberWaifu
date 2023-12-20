@@ -1,5 +1,14 @@
 # CyberWaifu
 
+this folk implements updates in the GPT server
+
+## folk objectives:
+
+- [x] a vector storage database for long conversations what can be personalized for server in local mode, at a diferent process or as a http server
+- [ ] a sumarization implementation
+- [x] new configuration system what allow personalization of your waifu like the prompt
+- [x] new LLM implementation (Calypso)
+- [ ] a support for different backends like gpt4all and text generation webui
 ## Introduction
 
 [CyberWaifu Server](https://github.com/jieran233/CyberWaifu/blob/main/Server) = [Flask](https://flask.palletsprojects.com) + [ ( [GPT](https://github.com/jieran233/CyberWaifu) + [Online translation](https://github.com/Animenosekai/translate) ) + [Tacotron2 / VITS](https://github.com/luoyily/MoeTTS) + [Live2D](https://github.com/jieran233/CyberWaifu/blob/main/Server/Live2D) ]
