@@ -131,6 +131,8 @@ http://127.0.0.1:7210/<prompt>
 
 [Documents - 百度翻译开放平台](https://api.fanyi.baidu.com/doc/21)
 
+[Calypso 3b alpha v2](https://huggingface.co/Xilabs/calypso-3b-alpha-v2)
+
 ......and more, thanks.
 
 *I am because we are.*
