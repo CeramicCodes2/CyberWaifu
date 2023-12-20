@@ -1,6 +1,19 @@
 {
-    "backend": "gpt4all",
+    "backend": "transformers",
     "vectorStorageBackend": "Chomadb",
+    "chat_buffer_size": 20,
+    "prompt_document": "ranni.json",
+    "full_prompt_document": "prompt_paths/ranni.json",
     "use_vectorStoragedb": false,
-    "use_summarysation": true
+    "use_summarysation": true,
+    "model_path": "model/",
+    "temperature": 0.6,
+    "top_p": 0.75,
+    "top_k": 50,
+    "num_beams": 50,
+    "max_new_tokens": 256,
+    "repetition_penalty": 1.4,
+    "early_stopping": true,
+    "load_in_8bit": false,
+    "vector_storage_configuration_file": "chroma_db.json"
 }

@@ -1,0 +1,10 @@
+{
+    "chroma_config": {
+        "host": "localhost",
+        "port": 8000,
+        "only_http": false
+    },
+    "path": "db/",
+    "embebingFunction": "all-MiniLM-L6-v2",
+    "mode": "client"
+}

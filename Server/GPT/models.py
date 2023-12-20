@@ -2,12 +2,15 @@
 from dataclasses import dataclass
 from typing import ClassVar
 from json import dumps,loads,JSONDecodeError
-from os.path import join,isfile
+from os.path import join,isfile,isdir
+from os import listdir
+import chromadb
 # from os import getcwd
 
 convertObject2JsonData = lambda self: dumps(dict((x,y) for x,y in vars(self).items() if not(x.startswith("_"))),indent=4)
 convert2Dict = lambda self: dict((x,y) for x,y in vars(self).items() if not(x.startswith("_")))
 # use this method inside the __str__
+
 
 # MERGER
 
@@ -18,12 +21,15 @@ class ModelLoader:
     '''
     # settings_path:str = join(getcwd(),'Server','GPT','config/') testing
     settings_path:str = 'config/'# the path of the configurations
-    def __init__(self,configuration_name:str,ModelClass):
+    def __init__(self,configuration_name:str,ModelClass,no_join_config_file_path=False):
         '''
             configuration_name -> name of the config file
-        
+        no_join_config_file_path -> donot use join it is usseful when you are using a model
+        that save the data in other directori diferent to config
         '''
         self.settings_path = join(ModelLoader.settings_path,configuration_name)
+        if no_join_config_file_path:
+            self.settings_path = configuration_name
         self.ModelClass = ModelClass
     def exceptions_processor(self,**kwargs):
         if(kwargs.get("exec_val",False)):
@@ -48,7 +54,7 @@ class ModelLoader:
                 
     def __enter__(self):
         if not(isfile(self.settings_path)):
-            raise ValueError("File not found ! \n create the file !")
+            raise ValueError(f"File not found ! \n create the file ! error path: {self.settings_path}")
         self.file_raw = open(self.settings_path,'r')
         try:
             self.configs = loads(self.file_raw.read())
@@ -67,6 +73,63 @@ class ModelLoader:
         self.file_raw.close()
     
 # DATA CLASSES
+
+@dataclass
+class ChromaDbClient:
+    _for = "chroma_config"
+    host:str = "localhost"
+    port:int = 8000
+    only_http:bool = False# pip install chromadb-client https://docs.trychroma.com/usage-guide
+    def __str__(self):
+        return convertObject2JsonData(self)
+
+    
+    
+@dataclass
+class ChromaDb:
+    # class attrs
+    availableChromaDbModes:ClassVar[list[str]] = ["client","http_client","server_process"]
+    ''' 
+    
+    choma modes descriptions:
+        client -> in this mode the chomadb will be executed in the current process it allows local storage 
+        server_process -> this mode executes a chomadb server in an other process and the current process will connect to them
+        http_client -> this chomadb mode executes a http server and the client will conect to them
+        
+    '''
+    #metha attrs
+    _metha_info:ClassVar[dict[str,object]] = {
+        "embebed_models":[ChromaDbClient]
+    }
+    # object attrs
+    chroma_config:ChromaDbClient
+    path:str = "db/"# path to save the chomadb data
+    embebingFunction:str = "all-MiniLM-L6-v2"# default for chomadb
+    mode:str = "client"
+    
+
+    def __post_init__(self):
+        if(not(self.mode in ChromaDb.availableChromaDbModes)):
+            raise NameError("error chomadb operation mode !")
+        if(not(isdir(self.path))):
+            raise NameError("DATABASE DOES NOT EXIST!")
+    def __str__(self):
+        ddata = dict((x,y) if not(isinstance(y,ChromaDbClient)) else (x,convert2Dict(y)) for x,y in vars(self).items() if not(x.startswith("_")))
+        return dumps(ddata,indent=4)
+@dataclass
+class PromptDocument:
+    """ use this class for make new prompts telling who the cyberwaifu are """
+    context:str
+    ia_prefix:str
+    user_prefix:str
+    temp:float = 0.6
+    def __post_init__(self):
+        if len(self.context) == 0:
+            raise NameError("PROMPT ERROR: Context unexisting")
+    def __str__(self):
+        return convertObject2JsonData(self)
+    
+        
 @dataclass
 class ChatBotSettings:
     
@@ -77,21 +140,55 @@ class ChatBotSettings:
         > use summarization
     '''
     # class atributes
-    available_backends:ClassVar[list[str]] = ["gpt4all","transformers"]
-    available_vectorStorageBackends:ClassVar[list[str]] = ["Chomadb",""]
+    available_backends:ClassVar[list[str]] = ["gpt4all","transformers","transformers_nbackend"]
+    available_vectorStorageBackends:ClassVar[list[str]] = ["Chromadb",""]
+    prompt_paths:ClassVar[str] = "prompt_paths/"
     # object attributes
     backend:str
     vectorStorageBackend:str
+    chat_buffer_size:int# buffer for the conversation
+    prompt_document:str = "ranni.json"# this will be used for load the prompt
+    full_prompt_document:str = join(prompt_paths,prompt_document)
     use_vectorStoragedb:bool = False
     use_summarysation:bool = True
+    model_path:str = r"model/"
+    # default configuration for the calypso model replace it with 
+    # the other configuration of your model
+    temperature:float = 0.6
+    top_p:float = 0.75
+    top_k:float=50
+    num_beams:int = 50
+    max_new_tokens:int = 256
+    repetition_penalty:float = 1.4
+    early_stopping:bool = True
+    load_in_8bit:bool = False
+    vector_storage_configuration_file:str = "chroma_db.json" # for default uses chomadb
     # obly the backends with no _ at start will be converted to json data config
     
-    def __post_init(self):
+    def __post_init__(self):
         # claus guards
         if not(self.backend in ChatBotSettings.available_backends):
             raise NameError('Formatting Error ! \n unikown backend')
         if self.use_vectorStoragedb and not(self.vectorStorageBackend in ChatBotSettings.available_vectorStorageBackends):
             raise NameError('Formatting Error ! \n unikown database backend ')
+        links = """
+        https://huggingface.co/EleutherAI/gpt-neo-125M    ～500MB
+        https://huggingface.co/EleutherAI/gpt-neo-1.3B   ～5GB
+        https://huggingface.co/EleutherAI/gpt-neo-2.7B    ～10GB
+        https://huggingface.co/EleutherAI/gpt-j-6B    ～12G(FP16) or ～24G(FP32)
+        https://huggingface.co/EleutherAI/gpt-neox-20b    ～35GB!
+        """
+        # validates the existence of the model path
+        if not(isdir(self.model_path)) or len(listdir(self.model_path)) == 0:    
+            raise NameError(f'Unexisting model download one at the follow links: \n \t\t {links}')
+        if not(isfile(join(ChatBotSettings.prompt_paths,self.prompt_document))):
+            print(join(ChatBotSettings.prompt_paths,self.prompt_document))
+            raise NameError("the Prompt document does not exists!")
+        if(not(isfile(join('config',self.vector_storage_configuration_file)))):
+            print(self.vector_storage_configuration_file)
+            raise NameError("the Chomadb configuration file does not exists!")
+        #self.full_prompt_document # this path will be used for access to the prompt_document and loadit
+        
         
     def __str__(self):
         return convertObject2JsonData(self)
@@ -126,6 +223,7 @@ class Settings:
     """ json code
     {
         {
+        "useAccelerateModule":false # this will implements the accelerate module
         "conversation": true,
         "sentence": true,
         "no-lf": true,
@@ -160,6 +258,7 @@ class Settings:
     # Object Arguments
     google_trans:Google_trans
     baidu_trans:Baidu_trans
+    useAccelerateModule:bool = False
     conversation:bool = True
     sentence:bool = True
     no_lf:bool = True
@@ -167,13 +266,17 @@ class Settings:
     answer_only:bool = False
     length:int = 12
     translator:str  = "google"
-    def __post_init(self):
+    def __post_init__(self):
         if not(self.translator in Settings.availableTranslators):
             raise ValueError('Unikown option of translation !')
         
     def __str__(self):
         ddata = dict((x,y) if not(isinstance(y,Google_trans) or isinstance(y,Baidu_trans)) else (x,convert2Dict(y)) for x,y in vars(self).items() if not(x.startswith("_")))
         return dumps(ddata,indent=4)
+
+
+
+
 # print(ChatBotSettings(backend="gpt4all",vectorStorageBackend="Chomadb"))
 '''
 {
@@ -184,13 +287,90 @@ class Settings:
 }
 '''
 
+
+# DATABASE Handler
+
+# from threading import th
+class ChomaDBHandler:
+    def __init__(self):
+        self._client = None 
+        with ModelLoader(configuration_name="bot_settings.json",ModelClass=ChatBotSettings) as ml:
+            self._bot_config = ml.vector_storage_configuration_file
+        with ModelLoader(configuration_name=self._bot_config.vector_storage_configuration_file,ModelClass=ChromaDb) as ml:
+            self._chroma_config = ml# loads the file cpmfogiration
+            
+    @property
+    def client(self):
+        ''' merges the client connection checks if the client was connected each call of the method '''
+        if(self._client.heartbeat()):
+            # if its connected
+            return self._client
+        else:
+            raise NameError("choma connection error !")
+    @client.deleter
+    def client(self):
+        ''' delete the database ''' 
+        print("ALERT THIS ACTION WILL DELETE THE DATABASE !".center(30,"#"))
+        self._client.reset()
+    def loadOnLocalMode(self):
+        self._client = chromadb.PersistentClient(path=self._chroma_config.path)
+    def runProcessOrHttpServer(self):
+        from threading import Thread# imports the module
+        t = threading.Thread(target=self.loadOnClientProcessOrHttp)
+        t.start()
+    def loadOnClientProcessOrHttp(self):
+        import subprocess
+        r = subprocess.Popen(["chroma","run","--path",self._chroma_config.path])
+        r.wait()
+        # loads 
+    def httpOrProcessClient(self):
+        self._client = chromadb.HttpClient(port=self._chroma_config.chroma_config.port,host=self._chroma_config.chroma_config.host)
+        
+        # executes the server
+    def handler(self):
+        """ this function will handle the database """ 
+        match self._chroma_config.mode:
+            case "client":
+                self.loadOnLocalMode()
+            case "http_client" | "server_process":
+                if self._chroma_config.chroma_config.only_http:
+                    print("WARNING: you can install the lightwaight client only using \n\t >pip install chromadb-client")
+                self.runProcessOrHttpServer()# runs the chomadb server
+                self.httpOrProcessClient()# sets the client
+            # "client","http_client","server_process"
+        
+        #self._client = chromadb.
+    #def EmbebingHuggingFaceModel(self):
+    #    '''
+    #    function embebing to use for create the collections in chomadb
+    #    https://www.youtube.com/watch?v=RkYuH_K7Fx4&t=28s
+    #    '''
+    #    SentenceTransformer
+        
+
 if __name__ == '__main__':
     #print(getcwd())
-    #with ModelLoader(configuration_name="bot_settings.json",ModelClass=ChatBotSettings) as ml:
+    #print(ChatBotSettings(backend='transformers',vectorStorageBackend='Chomadb',chat_buffer_size=20))
+    #
+    #print(ChromaDb(chroma_config=ChromaDbClient()))
+    #obj = ChatBotSettings(backend='transformers',vectorStorageBackend='Chomadb')
+    #print(PromptDocument(context="hello world",ia_prefix="hehe"))
+    #print(isfile(join(obj.prompt_paths,obj.prompt_document)))
+    #print(join(obj.prompt_paths,obj.prompt_document))
+    ##print(obj.m)
+    #print(PromptDocument(context="you are ranni the witch and your frend {user} asked some questions:",ia_prefix="ranni",user_prefix="bk"))
+    #with ModelLoader(configuration_name=obj.full_prompt_document,ModelClass=PromptDocument) as ml: 
     #    print(ml)
-    #    print(dir(ml))
+    with ModelLoader(configuration_name="bot_settings.json",ModelClass=ChatBotSettings) as ml:
+        print(ml)
+        print(dir(ml))
+        obj = ml
+        print(ml.full_prompt_document) 
+    #    print(ml.model_path)
+    with ModelLoader(configuration_name=obj.full_prompt_document,ModelClass=PromptDocument,no_join_config_file_path=True) as ml: 
+        print(ml)
     #print(Settings(google_trans=Google_trans(),baidu_trans=Baidu_trans()))
     #print(Google_trans())
-    with ModelLoader(configuration_name="test.json",ModelClass=Settings) as ml:
-        print(dir(ml))
-        print(ml.google_trans.trans_opt)
+    #with ModelLoader(configuration_name="test.json",ModelClass=Settings) as ml:
+    #    print(dir(ml))
+    #    print(ml.google_trans.trans_opt)
