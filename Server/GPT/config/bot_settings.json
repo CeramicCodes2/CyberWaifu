@@ -15,5 +15,6 @@
     "repetition_penalty": 1.4,
     "early_stopping": true,
     "load_in_8bit": false,
+    "hook_storage": 10,
     "vector_storage_configuration_file": "chroma_db.json"
 }

@@ -4,6 +4,8 @@ from typing import ClassVar
 from json import dumps,loads,JSONDecodeError
 from os.path import join,isfile,isdir
 from os import listdir
+from uuid import uuid4
+from datetime import datetime
 import chromadb
 # from os import getcwd
 
@@ -102,10 +104,15 @@ class ChromaDb:
         "embebed_models":[ChromaDbClient]
     }
     # object attrs
+    
     chroma_config:ChromaDbClient
+    top_predictions:int = 3# number of predictions
+    current_collection:str = ""# the current table for default will be used the character_ia name
     path:str = "db/"# path to save the chomadb data
     embebingFunction:str = "all-MiniLM-L6-v2"# default for chomadb
     mode:str = "client"
+    #allow_in_memory:bool = True
+
     
 
     def __post_init__(self):
@@ -128,7 +135,8 @@ class PromptDocument:
             raise NameError("PROMPT ERROR: Context unexisting")
     def __str__(self):
         return convertObject2JsonData(self)
-    
+
+
         
 @dataclass
 class ChatBotSettings:
@@ -162,6 +170,7 @@ class ChatBotSettings:
     repetition_penalty:float = 1.4
     early_stopping:bool = True
     load_in_8bit:bool = False
+    hook_storage:int =  0# numerod e mensajes para activar el almacenamiento # pode defecto la mitad del buffer size ( se saca la mitad en el post init)
     vector_storage_configuration_file:str = "chroma_db.json" # for default uses chomadb
     # obly the backends with no _ at start will be converted to json data config
     
@@ -189,7 +198,12 @@ class ChatBotSettings:
             raise NameError("the Chomadb configuration file does not exists!")
         #self.full_prompt_document # this path will be used for access to the prompt_document and loadit
         
-        
+        if(self.hook_storage > self.chat_buffer_size):
+            # si es mayor levantara un erro por que nunca se guardaran los datos
+            raise NameError("Excetion invalid hook storage the value need to be lees than the buffer size")
+        if(self.hook_storage == 0):
+            self.hook_storage = self.chat_buffer_size//2
+            
     def __str__(self):
         return convertObject2JsonData(self)
 
@@ -287,18 +301,53 @@ class Settings:
 }
 '''
 
+# dataclass for save documents
+
+
+@dataclass
+class Metadata:
+    _for = "metadatas"
+    sumarization:str = ""
+    sentimental_conversation:str = ""
+    date:str = str(datetime.now())
+@dataclass 
+class Document:
+    _metha_info:ClassVar[dict[str,object]] = {
+        "embebed_models":[Metadata]
+    }
+    sq_number:ClassVar[int] # use collection.count()
+    metadatas:list[Metadata]
+    documents:list[str]# ia prefix
+    def __post_init__(self):
+        self.ids:list[str] = [str(x) for x in range(Document.sq_number,len(self.documents))]# new uuid\
+        # actualizamos numero de sequencia
+        #print(self.ids)
+        self.ids = [ str(Document.sq_number)]
+        #Document.sq_number += int(self.ids[-1]) + 1# ultimo elemento 
+        #self.metadatas = [ Metadata(x) for x in range(0,len(self.documents))]
+        self.metadatas =  [ convert2Dict(x) for x in self.metadatas]# convert embebed to dict
+        # generates the id for each conversation
+    def __str__(self):
+        ddata = dict((x,y) if not(isinstance(y,Metadata)) else (x,convert2Dict(y)) for x,y in vars(self).items() if not(x.startswith("_")))
+        return dumps(ddata,indent=4)
+    def toDict(self):
+        ddata = dict((x,y) if not(isinstance(y,Metadata)) else (x,convert2Dict(y)) for x,y in vars(self).items() if not(x.startswith("_")))
+        return ddata
+    
+    
 
 # DATABASE Handler
 
 # from threading import th
 class ChomaDBHandler:
-    def __init__(self):
+    def __init__(self,ia_prefix:str):
         self._client = None 
+        self._ia_prefix = ia_prefix
+        self._collection = None
         with ModelLoader(configuration_name="bot_settings.json",ModelClass=ChatBotSettings) as ml:
-            self._bot_config = ml.vector_storage_configuration_file
+            self._bot_config = ml
         with ModelLoader(configuration_name=self._bot_config.vector_storage_configuration_file,ModelClass=ChromaDb) as ml:
-            self._chroma_config = ml# loads the file cpmfogiration
-            
+            self._chroma_config = ml# loads the file cpmfogiration 
     @property
     def client(self):
         ''' merges the client connection checks if the client was connected each call of the method '''
@@ -312,8 +361,18 @@ class ChomaDBHandler:
         ''' delete the database ''' 
         print("ALERT THIS ACTION WILL DELETE THE DATABASE !".center(30,"#"))
         self._client.reset()
+    @property
+    def collection(self):
+        """ current collection loads """
+        return self._collection
+    @collection.setter
+    def collection(self,collection_name:str):
+        ''' load the colection ''' 
+        self._collection = self.client.get_or_create_collection(collection_name)
     def loadOnLocalMode(self):
         self._client = chromadb.PersistentClient(path=self._chroma_config.path)
+        # mas rapido que usar Settings
+        # parquet default config and duckdb
     def runProcessOrHttpServer(self):
         from threading import Thread# imports the module
         t = threading.Thread(target=self.loadOnClientProcessOrHttp)
@@ -327,8 +386,29 @@ class ChomaDBHandler:
         self._client = chromadb.HttpClient(port=self._chroma_config.chroma_config.port,host=self._chroma_config.chroma_config.host)
         
         # executes the server
+    def createDocument(self,past_dialogue:list[str]):
+        """ this function will be called when the sumarization_hook has been hooked """
+        # las conversaciones se guardaran cada self._bot_config.chat_buffer_size
+        #print(past_dialogue)
+        
+        #print(type(str(past_dialogue)))
+        Document.sq_number = self._collection.count()
+        # fijamos el numero 
+        dc = Document(
+                documents=past_dialogue,
+                       metadatas=[Metadata(
+                            sumarization="",
+                            #TODO: solo se realizara la sumarizacion al primer elemento despues de superar el buffer y se aplicara a todos los elementos
+                        ## en el bloque antes de superar el buffer
+                        ## hola (sumarizacion: usuario saluda) ...  buffer size alcanzado  de nuevo realiza sumarizacion
+                        ## TODO: metadatas eliminara
+                        sentimental_conversation="happy"
+        )]).toDict()
+        print("PRE DC".center(30,"#"),dc)
+        self.collection.add(**dc)
+        ## TODO: COLOCAR DE DONDE A DONDE SE AGARRARA DE PAST_DIALOGUE COMO EN CODIGO ORIGINAL [-20:]
     def handler(self):
-        """ this function will handle the database """ 
+        """ this function will call the specific method what will load the chromadb in an specific mode """ 
         match self._chroma_config.mode:
             case "client":
                 self.loadOnLocalMode()
@@ -338,7 +418,15 @@ class ChomaDBHandler:
                 self.runProcessOrHttpServer()# runs the chomadb server
                 self.httpOrProcessClient()# sets the client
             # "client","http_client","server_process"
+        if len(self._chroma_config.current_collection) == 0:
+            self.collection = self._ia_prefix# create o get the collection
+            print(f"USING {self._ia_prefix} COLLECTION".center(20,"#"))
+            return 0
         
+        self.collection = self._chroma_config.current_collection
+        print(f"USING {self._chroma_config.current_collection} COLLECTION".center(20,"#"))
+        return 0 
+            # use the table 
         #self._client = chromadb.
     #def EmbebingHuggingFaceModel(self):
     #    '''
@@ -350,6 +438,11 @@ class ChomaDBHandler:
 
 if __name__ == '__main__':
     #print(getcwd())
+    #print(Settings(
+    #    google_trans=Google_trans(
+    #        ),
+    #    baidu_trans=Baidu_trans()
+    #    ))
     #print(ChatBotSettings(backend='transformers',vectorStorageBackend='Chomadb',chat_buffer_size=20))
     #
     #print(ChromaDb(chroma_config=ChromaDbClient()))
@@ -361,11 +454,13 @@ if __name__ == '__main__':
     #print(PromptDocument(context="you are ranni the witch and your frend {user} asked some questions:",ia_prefix="ranni",user_prefix="bk"))
     #with ModelLoader(configuration_name=obj.full_prompt_document,ModelClass=PromptDocument) as ml: 
     #    print(ml)
-    with ModelLoader(configuration_name="bot_settings.json",ModelClass=ChatBotSettings) as ml:
-        print(ml)
-        print(dir(ml))
-        obj = ml
-        print(ml.full_prompt_document) 
+   
+    #with ModelLoader(configuration_name="bot_settings.json",ModelClass=ChatBotSettings) as ml:
+    #    print(ml)
+    #    print(dir(ml))
+    #    obj = ml
+    #    print(ml.full_prompt_document)
+    """
     #    print(ml.model_path)
     with ModelLoader(configuration_name=obj.full_prompt_document,ModelClass=PromptDocument,no_join_config_file_path=True) as ml: 
         print(ml)
@@ -373,4 +468,70 @@ if __name__ == '__main__':
     #print(Google_trans())
     #with ModelLoader(configuration_name="test.json",ModelClass=Settings) as ml:
     #    print(dir(ml))
-    #    print(ml.google_trans.trans_opt)
+    #    print(ml.google_trans.trans_opt)"""
+    
+    chroma = ChomaDBHandler(ia_prefix="ranni")
+    chroma.handler()
+    # chroma.collection.delete("ranni")
+    #Document.sq_number = chroma.collection.count()
+    #print(Document.sq_number)
+    #chroma.client.delete_collection(name="ranni")
+    """
+    chroma.createDocument(
+        past_dialogue=[
+            'Caballero: Mi bella princesa, estáis bien? Espero que esa bestia no os haya hecho daño. \n Princesa: Estoy bien'
+        ]
+    )
+    chroma.createDocument(  
+            ['''princesa: Pero tú eres más que un simple servidor. Eres un héroe, un hombre noble y generoso. ¿Qué puedo hacer para recompensarte por tu gesta?
+caballero: Nada, princesa. Tu sonrisa y tu felicidad son suficientes para mí.
+princesa: ¿Seguro que no hay nada que desees? ¿Ni siquiera un beso?
+caballero: Bueno, si insistes... Un beso sería un regalo maravilloso.
+princesa: Entonces ven aquí y tómalo. (Se besan apasionadamente)''']
+    #            
+    )
+    chroma.createDocument(
+        ['''princesa: Estoy muy agradecida por tu valentía, caballero. Has arriesgado tu vida para salvarme de las garras del dragón.
+            caballero: No hay de qué, princesa. Es mi deber y mi honor servir a la corona y proteger a la reina del reino.''']
+    )
+    """
+    #chroma.createDocument(  
+    """
+    chroma.collection.add(
+    documents=['''princesa: Estoy muy agradecida por tu valentía, caballero. Has arriesgado tu vida para salvarme de las garras del dragón.
+            caballero: No hay de qué, princesa. Es mi deber y mi honor servir a la corona y proteger a la reina del reino.'''],
+        metadatas=[{'ee':'cc'}],
+        ids=[str(chroma._collection.count() + 1)])
+    print(chroma.collection.get())"""
+    rsp = chroma.collection.query(
+        query_texts=[
+            "caballero: recuerdas la primera vez que nos besamos ?"
+        ]
+    )
+    print(len(rsp["documents"]))
+    print(rsp["documents"][0])
+    
+                
+    
+    ##del(chroma.client)
+    #
+    #print(chroma._collection.query(
+    #    query_texts="princesa"
+    #))
+    #print(chroma.collection.peek())
+    #'''
+    #print(Document(documents=["ranni: dear tainish \n tainish: yes my lady !"],
+    #                   metadatas=Metadata(
+    #    sumarization="",#TODO: solo se realizara la sumarizacion al primer elemento despues de superar el buffer y se aplicara a todos los elementos
+    #    # en el bloque antes de superar el buffer
+    #    # hola (sumarizacion: usuario saluda) ...  buffer size alcanzado  de nuevo realiza sumarizacion
+    #    # TODO: metadatas eliminara
+    #    sentimental_conversation="happy"
+    #)).toDict())
+    #'''
+    #print(" \n" *100)
+    #print("result",chroma.collection.query(
+    #    n_results=2,
+    #    query_texts=["ranni: recuerdas cuando fuimos juntos"]
+    #))
+    #print("ENDED")

@@ -4,6 +4,8 @@
         "port": 8000,
         "only_http": false
     },
+    "top_predictions": 3,
+    "current_collection": "",
     "path": "db/",
     "embebingFunction": "all-MiniLM-L6-v2",
     "mode": "client"

@@ -1,19 +1,19 @@
 {
     "conversation": true,
     "sentence": true,
-    "no-lf": true,
-    "no-prompt": true,
-    "answer-only": false,
+    "no_lf": true,
+    "no_prompt": true,
+    "answer_only": false,
     "length": 12,
     "translator": "google",
-    "google-trans": {
-        "trans-ipt": "zh",
-        "trans-opt": "zh",
-        "trans-opt2": "jpn"
+    "google_trans": {
+        "trans_ipt": "zh",
+        "trans_opt": "zh",
+        "trans_opt2": "jpn"
     },
-    "baidu-trans": {
-        "trans-ipt": "zh",
-        "trans-opt": "zh",
-        "trans-opt2": "jp"
+    "baidu_trans": {
+        "trans_ipt": "zh",
+        "trans_opt": "zh",
+        "trans_opt2": "jp"
     }
 }

@@ -1,12 +1,12 @@
-import gradio as gr
+#import gradio as gr
 from transformers import LlamaTokenizer, LlamaForCausalLM, GenerationConfig
 import torch
 from transformers import LlamaForCausalLM, LlamaTokenizer
-from models import ModelLoader,ChatBotSettings,Settings,Google_trans,Baidu_trans,PromptDocument
+from models import ModelLoader,ChatBotSettings,Settings,Google_trans,Baidu_trans,PromptDocument,ChomaDBHandler,ChromaDb,ChromaDbClient,join
 
 
 class Chat:
-    def __init__(self, modelName:str, tokenizer, conv_prompt, user_alias='User', character_name='Chatbot', message_history=[], chat_buffer_size=10):
+    def __init__(self, modelName:str, message_history=[]):
         self.modelName = modelName
         self.load_settings()
         self.conv_prompt = self._prompt_document.context# loads the context of the situation
@@ -16,27 +16,45 @@ class Chat:
         self.chat_buffer_size = self._chatSettings.chat_buffer_size
         self.message_history = message_history
         self.display_messages = []# mensajes a mostrar
+        self.storage_hook = self.display_messages.copy()
+        #self._database = None
         for message_pairs in message_history:
             message1, message2 = message_pairs
             self.display_messages.append([message1['text'], message2['text']])
         self.loadModel()
+    @property
+    def database(self):
+        return self._database
+    @database.setter
+    def database(self,arg:list[str]):
+        self._database.createDocument(arg)
+        # save data
     def loadModel(self):
+        #print(join(self._chatSettings.model_path,self.modelName))
+        '''
         self.model = LlamaForCausalLM.from_pretrained(
-            self._chatSettings.model_path + self.modelName, device_map="auto", load_in_8bit=load_in_8bit)
-        self.tokenizer = LlamaTokenizer.from_pretrained(self._chatSettings.model_path + self.modelName)
+            join(self._chatSettings.model_path,self.modelName), offload_folder="model\offloads",device_map="auto")#, load_in_4bit=self._chatSettings.load_in_8bit)#load_in_8bit)
+        self.tokenizer = LlamaTokenizer.from_pretrained(join(self._chatSettings.model_path,self.modelName))#self._chatSettings.model_path + self.modelName)
+        '''
     def load_settings(self):
         with ModelLoader("bot_settings.json",ChatBotSettings) as model:
             self._chatSettings = model
-        with ModelLoader(configuration_name="test.json",ModelClass=Settings) as ml:
-            self._settings = ml
-        with ModelLoader(configuration_name=self._model.full_prompt_document,ModelClass=PromptDocument) as ml:
+        #with ModelLoader(configuration_name="test.json",ModelClass=Settings) as ml:
+        #    self._settings = ml
+        with ModelLoader(configuration_name=self._chatSettings.full_prompt_document,ModelClass=PromptDocument,no_join_config_file_path=True) as ml:
             self._prompt_document = ml
             self.character_name = ml.ia_prefix
             self.user_alias = ml.user_prefix
             # NOTE: if a temp was defined it will replace the default configuration temperature
             self._chatSettings.temperature = ml.temp
+        # INIT DATABASE
+        self._database = ChomaDBHandler(self._prompt_document.ia_prefix)
+        self._database.handler()
+    
+        
     def evaluate(self, message, **kwargs):#  temperature=0.6, top_p=0.75, top_k=50, num_beams=5, max_new_tokens=256, repetition_penalty=1.4,
         prompt = self.prompt_gen_chat(self.message_history, message)
+        '''
         inputs = self.tokenizer(prompt, return_tensors="pt")
         input_ids = inputs["input_ids"].to(self.model.device)
         generation_config = GenerationConfig(
@@ -65,9 +83,10 @@ class Chat:
         s = generation_output.sequences[0]
         output = self.tokenizer.decode(s, skip_special_tokens=True)
         split_str = """### Response:\n{self.character_name}:"""
-        output = output.split(split_str)[1].strip()
-        return output
-    def reset_message_history(self,save_overflow_conversation=True):
+        output = output.split(split_str)[1].strip()'''
+        return ""
+        #return output
+    def reset_message_history(self,message,response,save_overflow_conversation=True):
         ''' 
         argument save_overflow_conversation will save the conversation using a vector storage database
         {
@@ -78,11 +97,24 @@ class Chat:
         }
         '''
         if(len(self.message_history) > self.chat_buffer_size):
+            #self.convert2Blocks(self.message_history[:-self.chat_buffer_size])
             self.message_history = self.message_history[-self.chat_buffer_size:]
             # toma del ulimo elemento en adelante
+        if(len(self.display_messages)%self._chatSettings.hook_storage == 0):
+            print("SAVING DATA".center(50,"#"))
+            print(self.display_messages)
+            print(" \n" * 3)
+            print(self.storage_hook)
+            print(" \n" * 3)
+            print('PRCCC')
+            #print(self.storage_hook[-self._chatSettings.hook_storage:])
+            self._database.createDocument(self.storage_hook[-self._chatSettings.hook_storage:])# al activarse se guarda
+            self.storage_hook = self.display_messages[-self._chatSettings.hook_storage:]# recorremos
+        self.storage_hook.append([message,response])
         self.display_messages.append([message, response])
         return self.display_messages
-    def update_conversation(self,message:str,response:str):
+        #return self.display_messages
+    def update_conversation(self,message:str):
         ''' update the conversation add and format the messages ''' 
         response = self.evaluate(message)
         self.message_history.append(
@@ -91,8 +123,16 @@ class Chat:
                 {"speaker": self.character_name, "text": response},
             )
         )
+        #self.storage_hook.append(
+        #    (
+        #        {"speaker": self.user_alias, "text": message},
+        #        {"speaker": self.character_name, "text": response},
+        #    )
+        #)# usar el metodo copy demandaria mayor gasto de recursos
+        #self.message_history.copy()
         # append the new message
-        self.reset_message_history()
+        display = self.reset_message_history(message,response)
+        return display
     def summaryse_previus_conversation(self):
         match self._chatSettings.vectorStorageBackend:
             case "Chomadb":
@@ -100,34 +140,24 @@ class Chat:
                 ...
             case _:
                 raise NameError("Error vector storage db not implemented !") 
-    def save_conversation(self):
-        """ this method will save the data using a vectorstorage database"""
-        pass
-    def search_conversation(self,user_message:str):
-        pass
-    def gradio_helper(self, message):
-        # make response
-        response = self.evaluate(message)
-        # update message history
-        self.message_history.append(
-            (
-                {"speaker": self.user_alias, "text": message},
-                {"speaker": self.character_name, "text": response},
-            )
-        )
-        if len(self.message_history) > self.chat_buffer_size:
-            self.message_history = self.message_history[-self.chat_buffer_size:]
-        # update display messages
-        self.display_messages.append([message, response])
-        return self.display_messages
-
+    @property
+    def databasec(self):
+        return self._database
     def prompt_gen_chat(self, message_history, message):
         past_dialogue = []
         for message_pairs in message_history:
             message1, message2 = message_pairs
             past_dialogue.append(f"{message1['speaker']}: {message1['text']}")
             past_dialogue.append(f"{message2['speaker']}: {message2['text']}")
+        result = self._database._collection.query(
+            query_texts=[message],# buscmos datos referentes al nuevo prompt e insertamos resultados
+            n_results=self._database._chroma_config.top_predictions,
+        )
+        if len(result["documents"]) != 0: # si hay un resultado
+            past_dialogue.extend(result["documents"][0])# primer documento
+            
         past_dialogue_formatted = "\n".join(past_dialogue)
+        
 
         prompt = f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
@@ -142,30 +172,29 @@ Continuing from the previous conversation, write what {self.character_name} says
 {self.user_alias}: {message}
 ### Response:
 {self.character_name}:"""
-
+        #print(prompt)
         return prompt
     def run(self,message):
-            self.update_conversation(message=message)
-            self.reset_message_history()
-    def launch_gradio(self):
-        with gr.Blocks(theme="JohnSmith9982/small_and_pretty") as demo:
-            chatbot = gr.Chatbot(elem_id="chatbot")
-            with gr.Row():
-                txt = gr.Textbox(show_label=False,
-                                 placeholder="Enter text and press enter")
-            txt.submit(self.gradio_helper, txt, chatbot)
-            txt.submit(lambda: "", None, txt)
+            print(self.update_conversation(message=message))
+            #self.reset_message_history()
+    #def launch_gradio(self):
+    #with gr.Blocks(theme="JohnSmith9982/small_and_pretty") as demo:
+    #    chatbot = gr.Chatbot(elem_id="chatbot")
+    #    with gr.Row():
+    #        txt = gr.Textbox(show_label=False,
+    #                         placeholder="Enter text and press enter")
+    #    txt.submit(self.gradio_helper, txt, chatbot)
+    #    txt.submit(lambda: "", None, txt)
+    #
+    #demo.launch(debug=True, share=True)
 
-        demo.launch(debug=True, share=True)
-
-
-if __name__ == "__main__":
-    model_path = "Xilabs/calypso-3b-alpha-v2"
-    load_in_8bit = False
-    model = LlamaForCausalLM.from_pretrained(
-        model_path, device_map="auto", load_in_8bit=load_in_8bit)
-    tokenizer = LlamaTokenizer.from_pretrained(model_path)
-    conv_prompt = "Two people are texting each other on a messaging platform."
+if __name__ == "__main__":#
+    #model_path = "Xilabs/calypso-3b-alpha-v2"
+    #load_in_8bit = False
+    #model = LlamaForCausalLM.from_pretrained(
+    #    model_path, device_map="auto", load_in_8bit=load_in_8bit)
+    #tokenizer = LlamaTokenizer.from_pretrained(model_path)
+    #conv_prompt = "Two people are texting each other on a messaging platform."
     message_history = [
         (
             {
@@ -189,6 +218,18 @@ if __name__ == "__main__":
         )
     ]
 
-    chat_instance = Chat(model, tokenizer, conv_prompt, user_alias='Bob',
-                             character_name='Alice', message_history=message_history)
-    chat_instance.launch_gradio()
+    chat_instance = Chat(modelName="calypso-3b-alpha-v2",message_history=message_history)
+    while True:
+        pr = input(">>>")
+        match pr:
+            case 'exit':
+                break
+            case 'get_vdb':
+                print(chat_instance.databasec.collection.peek())
+            case 'get_timer_vs':
+                print(len(chat_instance.message_history)%chat_instance._chatSettings.hook_storage)
+            case _:
+                pass
+            
+        chat_instance.run(pr)
+    # chat_instance.launch_gradio()
