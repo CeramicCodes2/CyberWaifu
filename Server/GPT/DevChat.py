@@ -2,8 +2,8 @@
 from transformers import LlamaTokenizer, LlamaForCausalLM, GenerationConfig
 import torch
 from transformers import LlamaForCausalLM, LlamaTokenizer
-from models import ModelLoader,ChatBotSettings,Settings,Google_trans,Baidu_trans,PromptDocument,ChomaDBHandler,ChromaDb,ChromaDbClient,join
-
+from models import ModelLoader,ChatBotSettings,Settings,Google_trans,Baidu_trans,PromptDocument,ChomaDBHandler,ChromaDb,ChromaDbClient,join,Metadata
+from datetime import datetime
 
 class Chat:
     def __init__(self, modelName:str, message_history=[]):
@@ -16,7 +16,7 @@ class Chat:
         self.chat_buffer_size = self._chatSettings.chat_buffer_size
         self.message_history = message_history
         self.display_messages = []# mensajes a mostrar
-        self.storage_hook = self.display_messages.copy()
+        self.storage_hook = self.message_history.copy()
         #self._database = None
         for message_pairs in message_history:
             message1, message2 = message_pairs
@@ -100,20 +100,31 @@ class Chat:
             #self.convert2Blocks(self.message_history[:-self.chat_buffer_size])
             self.message_history = self.message_history[-self.chat_buffer_size:]
             # toma del ulimo elemento en adelante
-        if(len(self.display_messages)%self._chatSettings.hook_storage == 0):
+        if(len(self.storage_hook)%self._chatSettings.hook_storage == 0):
+            # pregunta respuesta
             print("SAVING DATA".center(50,"#"))
             print(self.display_messages)
             print(" \n" * 3)
             print(self.storage_hook)
             print(" \n" * 3)
             print('PRCCC')
-            #print(self.storage_hook[-self._chatSettings.hook_storage:])
-            self._database.createDocument(self.storage_hook[-self._chatSettings.hook_storage:])# al activarse se guarda
+            doc = []
+            metha = []
+            print(self.storage_hook)
+            [ [metha.extend([x.get("methadata",False),y.get("methadata",False)]),doc.extend([f"{x['speaker']}: {x['text']}",f"{y['speaker']}: {y['text']}"])] for x,y in self.storage_hook]
+            #[ sh.extend([print(x,y)]) for x,y in self.storage_hook]
+            metha = [ x if x else Metadata(date=str(datetime.now())) for x in metha]
+            # limpiamos datos para guardarlos
+            print(doc)#self.storage_hook[:self._chatSettings.hook_storage])
+            self._database.createDocument(doc,metha=metha)#[:self._chatSettings.hook_storage]))
+            # al activarse se guardan los primeros elementos
             self.storage_hook = self.display_messages[-self._chatSettings.hook_storage:]# recorremos
-        self.storage_hook.append([message,response])
+        #self.storage_hook.append([message,response])
         self.display_messages.append([message, response])
         return self.display_messages
         #return self.display_messages
+    def sentimental_analysis(self):
+        return 'happy'
     def update_conversation(self,message:str):
         ''' update the conversation add and format the messages ''' 
         response = self.evaluate(message)
@@ -123,12 +134,12 @@ class Chat:
                 {"speaker": self.character_name, "text": response},
             )
         )
-        #self.storage_hook.append(
-        #    (
-        #        {"speaker": self.user_alias, "text": message},
-        #        {"speaker": self.character_name, "text": response},
-        #    )
-        #)# usar el metodo copy demandaria mayor gasto de recursos
+        self.storage_hook.append(
+            (
+                {"speaker": self.user_alias, "text": message,"methadata": {"date":str(datetime.now()),"sentimental_conversation":'',"sumarization":''}},
+                {"speaker": self.character_name, "text": response,"methadata": {"date":str(datetime.now()),"sentimental_conversation":'',"sumarization":''}},
+            )
+        )# usar el metodo copy demandaria mayor gasto de recursos
         #self.message_history.copy()
         # append the new message
         display = self.reset_message_history(message,response)
@@ -200,20 +211,24 @@ if __name__ == "__main__":#
             {
                 "speaker": "Bob",
                 "text": "Hey, Alice! How are you doing? What's the status on those reports?",
+                "methadata": {"date":str(str(datetime.now())),"sentimental_conversation":'',"sumarization":''}
             },
             {
                 "speaker": "Alice",
                 "text": "Hey, Bob! I'm doing well. I'm almost done with the reports. I'll send them to you by the end of the day.",
+                "methadata": {"date":str(datetime.now()),"sentimental_conversation":'',"sumarization":''} 
             },
         ),
         (
             {
                 "speaker": "Bob",
                 "text": "That's great! Thanks, Alice. I'll be waiting for them. Btw, I have approved your leave for next week.",
+                "methadata": {"date":str(datetime.now()),"sentimental_conversation":'',"sumarization":''}
             },
             {
                 "speaker": "Alice",
                 "text": "Oh, thanks, Bob! I really appreciate it. I will be sure to send you the reports before I leave. Anything else you need from me?",
+                "methadata": {"date":str(datetime.now()),"sentimental_conversation":'',"sumarization":''}
             },
         )
     ]

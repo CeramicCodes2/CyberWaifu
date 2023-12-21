@@ -319,13 +319,15 @@ class Document:
     metadatas:list[Metadata]
     documents:list[str]# ia prefix
     def __post_init__(self):
-        self.ids:list[str] = [str(x) for x in range(Document.sq_number,len(self.documents))]# new uuid\
+        if Document.sq_number == 0:
+            Document.sq_number +=1# no puede ser 0
+        self.ids:list[str] = [str(x) for x in range(Document.sq_number,len(self.documents)+1)]# new uuid\
         # actualizamos numero de sequencia
         #print(self.ids)
-        self.ids = [ str(Document.sq_number)]
+        #self.ids = [ str(Document.sq_number) ]
         #Document.sq_number += int(self.ids[-1]) + 1# ultimo elemento 
         #self.metadatas = [ Metadata(x) for x in range(0,len(self.documents))]
-        self.metadatas =  [ convert2Dict(x) for x in self.metadatas]# convert embebed to dict
+        self.metadatas =  [ convert2Dict(x) if isinstance(x,Metadata) else x for x in self.metadatas]# convert embebed to dict
         # generates the id for each conversation
     def __str__(self):
         ddata = dict((x,y) if not(isinstance(y,Metadata)) else (x,convert2Dict(y)) for x,y in vars(self).items() if not(x.startswith("_")))
@@ -386,7 +388,7 @@ class ChomaDBHandler:
         self._client = chromadb.HttpClient(port=self._chroma_config.chroma_config.port,host=self._chroma_config.chroma_config.host)
         
         # executes the server
-    def createDocument(self,past_dialogue:list[str]):
+    def createDocument(self,past_dialogue:list[str],metha:list[dict[str,str]]):
         """ this function will be called when the sumarization_hook has been hooked """
         # las conversaciones se guardaran cada self._bot_config.chat_buffer_size
         #print(past_dialogue)
@@ -396,14 +398,17 @@ class ChomaDBHandler:
         # fijamos el numero 
         dc = Document(
                 documents=past_dialogue,
-                       metadatas=[Metadata(
+                       metadatas=metha).toDict()
+        '''
+    [Metadata(**metha)
                             sumarization="",
                             #TODO: solo se realizara la sumarizacion al primer elemento despues de superar el buffer y se aplicara a todos los elementos
                         ## en el bloque antes de superar el buffer
                         ## hola (sumarizacion: usuario saluda) ...  buffer size alcanzado  de nuevo realiza sumarizacion
                         ## TODO: metadatas eliminara
                         sentimental_conversation="happy"
-        )]).toDict()
+        )] 
+        '''
         print("PRE DC".center(30,"#"),dc)
         self.collection.add(**dc)
         ## TODO: COLOCAR DE DONDE A DONDE SE AGARRARA DE PAST_DIALOGUE COMO EN CODIGO ORIGINAL [-20:]
@@ -510,7 +515,7 @@ princesa: Entonces ven aquí y tómalo. (Se besan apasionadamente)''']
     )
     print(len(rsp["documents"]))
     print(rsp["documents"][0])
-    
+    print(chroma.collection.count())
                 
     
     ##del(chroma.client)
