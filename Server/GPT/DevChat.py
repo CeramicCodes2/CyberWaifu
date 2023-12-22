@@ -103,14 +103,12 @@ class Chat:
         if(len(self.storage_hook)%self._chatSettings.hook_storage == 0):
             # pregunta respuesta
             print("SAVING DATA".center(50,"#"))
-            print(self.display_messages)
-            print(" \n" * 3)
             print(self.storage_hook)
             print(" \n" * 3)
-            print('PRCCC')
+            #print('PRCCC')
             doc = []
             metha = []
-            print(self.storage_hook)
+            #print(self.storage_hook)
             [ [metha.extend([x.get("methadata",False),y.get("methadata",False)]),doc.extend([f"{x['speaker']}: {x['text']}",f"{y['speaker']}: {y['text']}"])] for x,y in self.storage_hook]
             #[ sh.extend([print(x,y)]) for x,y in self.storage_hook]
             metha = [ x if x else Metadata(date=str(datetime.now())) for x in metha]
@@ -118,7 +116,8 @@ class Chat:
             print(doc)#self.storage_hook[:self._chatSettings.hook_storage])
             self._database.createDocument(doc,metha=metha)#[:self._chatSettings.hook_storage]))
             # al activarse se guardan los primeros elementos
-            self.storage_hook = self.display_messages[-self._chatSettings.hook_storage:]# recorremos
+            self.storage_hook = self.storage_hook[-self._chatSettings.hook_storage:]# recorremos
+            print("HOOK".center(100,"#") + "\n",self.storage_hook)
         #self.storage_hook.append([message,response])
         self.display_messages.append([message, response])
         return self.display_messages

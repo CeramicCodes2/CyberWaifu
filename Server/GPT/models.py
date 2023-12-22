@@ -319,9 +319,12 @@ class Document:
     metadatas:list[Metadata]
     documents:list[str]# ia prefix
     def __post_init__(self):
-        if Document.sq_number == 0:
-            Document.sq_number +=1# no puede ser 0
-        self.ids:list[str] = [str(x) for x in range(Document.sq_number,len(self.documents)+1)]# new uuid\
+        if len(self.documents) == 1:
+            print("FF",len(self.documents))
+            self.ids = Document.sq_number + 1
+        else:
+            print("TT",len(self.documents),Document.sq_number)
+            self.ids:list[str] = [str(x) for x in range(Document.sq_number+1,Document.sq_number + len(self.documents)+1)]# new uuid\
         # actualizamos numero de sequencia
         #print(self.ids)
         #self.ids = [ str(Document.sq_number) ]
@@ -517,7 +520,7 @@ princesa: Entonces ven aquí y tómalo. (Se besan apasionadamente)''']
     print(rsp["documents"][0])
     print(chroma.collection.count())
                 
-    
+    print(chroma.collection.get(ids=["20"]))
     ##del(chroma.client)
     #
     #print(chroma._collection.query(
