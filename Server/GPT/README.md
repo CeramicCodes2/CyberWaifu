@@ -5,6 +5,7 @@
 ### download model
 
 Link    Model file size
+[calypso-3b-alpha-v2-quantificated ](https://huggingface.co/Aryanne/Calypso-3B-alpha-v2-gguf/tree/main)
 
 **[EleutherAI/gpt-neo-125M · Hugging Face](https://huggingface.co/EleutherAI/gpt-neo-125M)    ～500MB**
 
