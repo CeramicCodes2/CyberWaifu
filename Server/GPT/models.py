@@ -129,6 +129,8 @@ class PromptDocument:
     context:str
     ia_prefix:str
     user_prefix:str
+    text_example:str
+    personality:str
     temp:float = 0.6
     def __post_init__(self):
         if len(self.context) == 0:

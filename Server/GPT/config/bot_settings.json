@@ -11,10 +11,10 @@
     "top_p": 0.75,
     "top_k": 50,
     "num_beams": 50,
-    "max_new_tokens": 256,
+    "max_new_tokens": 1024,
     "repetition_penalty": 1.4,
     "early_stopping": true,
-    "load_in_8bit": false,
+    "load_in_8bit": true,
     "hook_storage": 10,
     "vector_storage_configuration_file": "chroma_db.json"
 }

@@ -1,7 +1,7 @@
 #import gradio as gr
 from transformers import LlamaTokenizer, LlamaForCausalLM, GenerationConfig
-import torch
-from transformers import LlamaForCausalLM, LlamaTokenizer
+#import torch
+from transformers import LlamaForCausalLM, LlamaTokenizer,pipeline
 from models import ModelLoader,ChatBotSettings,Settings,Google_trans,Baidu_trans,PromptDocument,ChomaDBHandler,ChromaDb,ChromaDbClient,join,Metadata
 from datetime import datetime
 
@@ -9,7 +9,7 @@ class Chat:
     def __init__(self, modelName:str, message_history=[]):
         self.modelName = modelName
         self.load_settings()
-        self.conv_prompt = self._prompt_document.context# loads the context of the situation
+        self.conv_prompt = self._prompt_document.context# .format(user=self._prompt_document.user_prefix)# loads the context of the situation
         
         self.user_alias = self._prompt_document.user_prefix
         self.character_name = self._prompt_document.ia_prefix
@@ -17,6 +17,8 @@ class Chat:
         self.message_history = message_history
         self.display_messages = []# mensajes a mostrar
         self.storage_hook = self.message_history.copy()
+        
+        self._a = ''
         #self._database = None
         for message_pairs in message_history:
             message1, message2 = message_pairs
@@ -30,12 +32,13 @@ class Chat:
         self._database.createDocument(arg)
         # save data
     def loadModel(self):
+        self.generator = pipeline('text-generation',do_sample=True,model="model/calypso-3b-alpha-v2",device_map="auto",max_length=self._chatSettings.max_new_tokens)
         #print(join(self._chatSettings.model_path,self.modelName))
-        '''
-        self.model = LlamaForCausalLM.from_pretrained(
-            join(self._chatSettings.model_path,self.modelName), offload_folder="model\offloads",device_map="auto")#, load_in_4bit=self._chatSettings.load_in_8bit)#load_in_8bit)
-        self.tokenizer = LlamaTokenizer.from_pretrained(join(self._chatSettings.model_path,self.modelName))#self._chatSettings.model_path + self.modelName)
-        '''
+        ##self.generator = pipeline('text-generation', model='model/gpt-neo-125m') 
+        #self.model = LlamaForCausalLM.from_pretrained(
+        #    join(self._chatSettings.model_path,self.modelName), offload_folder="model\offloads",device_map="auto", load_in_4bit=self._chatSettings.load_in_8bit)#load_in_8bit)
+        #self.tokenizer = LlamaTokenizer.from_pretrained(join(self._chatSettings.model_path,self.modelName))#self._chatSettings.model_path + self.modelName)
+        
     def load_settings(self):
         with ModelLoader("bot_settings.json",ChatBotSettings) as model:
             self._chatSettings = model
@@ -51,12 +54,34 @@ class Chat:
         self._database = ChomaDBHandler(self._prompt_document.ia_prefix)
         self._database.handler()
     
-        
+    def gpt_neo(self,prompt):
+        return self.generator(prompt, do_sample=True, min_length=20, max_length=self._chatSettings.max_new_tokens)
+         
+    @property
+    def get_prompt(self):
+        return self._a
+    @get_prompt.setter
+    def get_prompt(self,arg):
+        self._a = arg
     def evaluate(self, message, **kwargs):#  temperature=0.6, top_p=0.75, top_k=50, num_beams=5, max_new_tokens=256, repetition_penalty=1.4,
         prompt = self.prompt_gen_chat(self.message_history, message)
+        self.get_prompt = prompt
+        output = self.generator(prompt)[0]["generated_text"]
+        # output = self.gpt_neo(prompt=prompt)[0]["generated_text"]
+        # generator = pipeline('conversational', model=r'model/gpt-neo-125m')
         '''
         inputs = self.tokenizer(prompt, return_tensors="pt")
         input_ids = inputs["input_ids"].to(self.model.device)
+        generation_config = GenerationConfig(
+            do_sample=True,
+            temperature=0.6,
+            top_p=0.75,
+            top_k=50,
+            num_beams=5,
+            early_stopping=True,
+            repetition_penalty=1.4,
+            **kwargs,
+        )
         generation_config = GenerationConfig(
             temperature=self._chatSettings.temperature,
             top_p=self._chatSettings.top_p,
@@ -72,20 +97,20 @@ class Chat:
             #repetition_penalty=repetition_penalty,
             **kwargs,
         )
-        with torch.no_grad():
-            generation_output = self.model.generate(
-                input_ids=input_ids,
-                generation_config=generation_config,
-                return_dict_in_generate=True,
-                output_scores=True,
-                max_new_tokens=self._chatSettings.max_new_tokens,
-            )
+        #with torch.no_grad():
+        #    generation_output = self.model.generate(
+        #        input_ids=input_ids,
+        #        generation_config=generation_config,
+        #        return_dict_in_generate=True,
+        #        output_scores=True,
+        #        max_new_tokens=self._chatSettings.max_new_tokens,
+        #    )
         s = generation_output.sequences[0]
-        output = self.tokenizer.decode(s, skip_special_tokens=True)
-        split_str = """### Response:\n{self.character_name}:"""
-        output = output.split(split_str)[1].strip()'''
-        return ""
-        #return output
+        output = self.tokenizer.decode(s, skip_special_tokens=True)'''
+        split_str = f"""### Response:\n{self.character_name}:"""
+        output = output.split(split_str)[1].strip()
+        #return ""
+        return output
     def reset_message_history(self,message,response,save_overflow_conversation=True):
         ''' 
         argument save_overflow_conversation will save the conversation using a vector storage database
@@ -140,6 +165,7 @@ class Chat:
         )# usar el metodo copy demandaria mayor gasto de recursos
         #self.message_history.copy()
         # append the new message
+        
         display = self.reset_message_history(message,response)
         return display
     def summaryse_previus_conversation(self):
@@ -170,8 +196,13 @@ class Chat:
 
         prompt = f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
+
 ### Instruction:
 {self.conv_prompt}
+
+{self._prompt_document.personality}
+The following texts are an example of something you would say
+{self._prompt_document.text_example}
 
 This is the conversation between {self.user_alias} and {self.character_name} till now:
 {past_dialogue_formatted}
@@ -204,6 +235,7 @@ if __name__ == "__main__":#
     #    model_path, device_map="auto", load_in_8bit=load_in_8bit)
     #tokenizer = LlamaTokenizer.from_pretrained(model_path)
     #conv_prompt = "Two people are texting each other on a messaging platform."
+    '''
     message_history = [
         (
             {
@@ -230,8 +262,8 @@ if __name__ == "__main__":#
             },
         )
     ]
-
-    chat_instance = Chat(modelName="calypso-3b-alpha-v2",message_history=message_history)
+    '''
+    chat_instance = Chat(modelName="calypso-3b-alpha-v2",message_history=[])
     while True:
         pr = input(">>>")
         match pr:
@@ -239,8 +271,18 @@ if __name__ == "__main__":#
                 break
             case 'get_vdb':
                 print(chat_instance.databasec.collection.peek())
+                continue
             case 'get_timer_vs':
                 print(len(chat_instance.message_history)%chat_instance._chatSettings.hook_storage)
+                continue
+            case 'get_history':
+                print('CURRENT HISTORY'.center(50,'#'))
+                print(chat_instance.message_history)
+                continue
+            case 'get_prompt':
+                print('CURRENT PROMPT'.center(50,"#"))
+                print(chat_instance.get_prompt)
+                continue
             case _:
                 pass
             
