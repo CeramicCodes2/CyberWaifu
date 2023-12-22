@@ -320,10 +320,10 @@ class Document:
     documents:list[str]# ia prefix
     def __post_init__(self):
         if len(self.documents) == 1:
-            print("FF",len(self.documents))
+            #print("FF",len(self.documents))
             self.ids = Document.sq_number + 1
         else:
-            print("TT",len(self.documents),Document.sq_number)
+            #print("TT",len(self.documents),Document.sq_number)
             self.ids:list[str] = [str(x) for x in range(Document.sq_number+1,Document.sq_number + len(self.documents)+1)]# new uuid\
         # actualizamos numero de sequencia
         #print(self.ids)
@@ -519,8 +519,8 @@ princesa: Entonces ven aquí y tómalo. (Se besan apasionadamente)''']
     print(len(rsp["documents"]))
     print(rsp["documents"][0])
     print(chroma.collection.count())
-                
-    print(chroma.collection.get(ids=["20"]))
+    print(chroma.collection.get()["documents"])           
+    #print(chroma.collection.get(ids=["20"]))
     ##del(chroma.client)
     #
     #print(chroma._collection.query(
