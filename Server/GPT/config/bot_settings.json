@@ -6,15 +6,17 @@
     "full_prompt_document": "prompt_paths/ranni.json",
     "use_vectorStoragedb": false,
     "use_summarysation": true,
-    "model_path": "model/",
+    "model_path": "model/calypso-3b-alpha-v2",
     "temperature": 0.6,
     "top_p": 0.75,
     "top_k": 50,
     "num_beams": 50,
-    "max_new_tokens": 1024,
+    "max_new_tokens": 2048,
     "repetition_penalty": 1.4,
     "early_stopping": true,
     "load_in_8bit": true,
-    "hook_storage": 10,
-    "vector_storage_configuration_file": "chroma_db.json"
+    "hook_storage": 2,
+    "vector_storage_configuration_file": "chroma_db.json",
+    "max_sumarization_lengt":100,
+    "min_sumarization_lengt":20
 }

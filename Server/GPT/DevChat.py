@@ -1,7 +1,5 @@
 #import gradio as gr
-from transformers import LlamaTokenizer, LlamaForCausalLM, GenerationConfig
 #import torch
-from transformers import LlamaForCausalLM, LlamaTokenizer,pipeline
 from models import ModelLoader,ChatBotSettings,Settings,Google_trans,Baidu_trans,PromptDocument,ChomaDBHandler,ChromaDb,ChromaDbClient,join,Metadata
 from datetime import datetime
 
@@ -31,19 +29,42 @@ class Chat:
     def database(self,arg:list[str]):
         self._database.createDocument(arg)
         # save data
-    def loadModel(self):
-        self.generator = pipeline('text-generation',do_sample=True,model="model/calypso-3b-alpha-v2",device_map="auto",max_length=self._chatSettings.max_new_tokens)
-        #print(join(self._chatSettings.model_path,self.modelName))
-        ##self.generator = pipeline('text-generation', model='model/gpt-neo-125m') 
-        #self.model = LlamaForCausalLM.from_pretrained(
-        #    join(self._chatSettings.model_path,self.modelName), offload_folder="model\offloads",device_map="auto", load_in_4bit=self._chatSettings.load_in_8bit)#load_in_8bit)
-        #self.tokenizer = LlamaTokenizer.from_pretrained(join(self._chatSettings.model_path,self.modelName))#self._chatSettings.model_path + self.modelName)
+    def transformer_backend(self):
+        from transformers import LlamaForCausalLM, LlamaTokenizer,pipeline,GenerationConfig
         
+        generation_config = GenerationConfig(
+            temperature=self._chatSettings.temperature,
+            top_p=self._chatSettings.top_p,
+            top_k=self._chatSettings.top_k,
+            do_sample=True,
+            num_beams = self._chatSettings.num_beams,
+            early_stopping=self._chatSettings.early_stopping,
+            repetition_penalty=self._chatSettings.repetition_penalty,
+            #temperature=temperature,
+            #top_p=top_p,
+            #top_k=top_k,
+            #num_beams=num_beams,
+            #early_stopping=True,
+            #repetition_penalty=repetition_penalty,
+        )
+        self.generator = pipeline('text-generation',do_sample=True,model=self._chatSettings.model_path,device_map="auto",max_length=self._chatSettings.max_new_tokens)
+        self.conv_analysis = lambda input_data: self.generator(input_data,task="sentiment-analysis")
+        if self._chatSettings.use_summarysation:
+            self.summarizator = lambda input_data: self.generator(input_data,task="summarization",min_lengt=self._chatSettings.min_sumarization_lengt,max_length=self._chatSettings.max_sumarization_lengt)
+            
+        
+    def loadModel(self):
+        match self._chatSettings.backend:
+            case "transformers":
+                self.transformer_backend()
+            case "llamacpp":
+                pass
+            case "gpt4all":
+                pass
+
     def load_settings(self):
         with ModelLoader("bot_settings.json",ChatBotSettings) as model:
             self._chatSettings = model
-        #with ModelLoader(configuration_name="test.json",ModelClass=Settings) as ml:
-        #    self._settings = ml
         with ModelLoader(configuration_name=self._chatSettings.full_prompt_document,ModelClass=PromptDocument,no_join_config_file_path=True) as ml:
             self._prompt_document = ml
             self.character_name = ml.ia_prefix
@@ -69,47 +90,8 @@ class Chat:
         output = self.generator(prompt)[0]["generated_text"]
         # output = self.gpt_neo(prompt=prompt)[0]["generated_text"]
         # generator = pipeline('conversational', model=r'model/gpt-neo-125m')
-        '''
-        inputs = self.tokenizer(prompt, return_tensors="pt")
-        input_ids = inputs["input_ids"].to(self.model.device)
-        generation_config = GenerationConfig(
-            do_sample=True,
-            temperature=0.6,
-            top_p=0.75,
-            top_k=50,
-            num_beams=5,
-            early_stopping=True,
-            repetition_penalty=1.4,
-            **kwargs,
-        )
-        generation_config = GenerationConfig(
-            temperature=self._chatSettings.temperature,
-            top_p=self._chatSettings.top_p,
-            top_k=self._chatSettings.top_k,
-            num_beams = self._chatSettings.num_beams,
-            early_stopping=self._chatSettings.early_stopping,
-            repetition_penalty=self._chatSettings.repetition_penalty
-            #temperature=temperature,
-            #top_p=top_p,
-            #top_k=top_k,
-            #num_beams=num_beams,
-            #early_stopping=True,
-            #repetition_penalty=repetition_penalty,
-            **kwargs,
-        )
-        #with torch.no_grad():
-        #    generation_output = self.model.generate(
-        #        input_ids=input_ids,
-        #        generation_config=generation_config,
-        #        return_dict_in_generate=True,
-        #        output_scores=True,
-        #        max_new_tokens=self._chatSettings.max_new_tokens,
-        #    )
-        s = generation_output.sequences[0]
-        output = self.tokenizer.decode(s, skip_special_tokens=True)'''
         split_str = f"""### Response:\n{self.character_name}:"""
         output = output.split(split_str)[1].strip()
-        #return ""
         return output
     def reset_message_history(self,message,response,save_overflow_conversation=True):
         ''' 
@@ -133,6 +115,12 @@ class Chat:
             #print(self.storage_hook)
             self.storage_hook = self.storage_hook[-self._chatSettings.hook_storage:]# recorremos
             [ [metha.extend([x.get("methadata",False),y.get("methadata",False)]),doc.extend([f"{x['speaker']}: {x['text']}",f"{y['speaker']}: {y['text']}"])] for x,y in self.storage_hook]
+            # sumarizamos
+            print(doc)
+            #self.summaryse_previus_conversation(doc)
+            #self.sentimental_analysis(self.storage_hook)
+            
+            
             #[ sh.extend([print(x,y)]) for x,y in self.storage_hook]
             metha = [ x if x else Metadata(date=str(datetime.now())) for x in metha]
             # limpiamos datos para guardarlos
@@ -146,8 +134,13 @@ class Chat:
         self.display_messages.append([message, response])
         return self.display_messages
         #return self.display_messages
-    def sentimental_analysis(self):
-        return 'happy'
+    def sentimental_analysis(self,conversation):
+        for x,y in conversation:
+            lysis = self.conv_analysis([x["text"],y["text"]])
+            conversation["methadata"]["sentimental_conversation"] = lysis[0]['label']
+            conversation["methadata"]["sentimental_conversation"] =lysis[1]['label']
+            # https://huggingface.co/docs/transformers/v4.36.1/en/quicktour#pipeline
+            
     def update_conversation(self,message:str):
         ''' update the conversation add and format the messages ''' 
         response = self.evaluate(message)
@@ -168,13 +161,16 @@ class Chat:
         
         display = self.reset_message_history(message,response)
         return display
-    def summaryse_previus_conversation(self):
-        match self._chatSettings.vectorStorageBackend:
-            case "Chomadb":
-                
-                ...
-            case _:
-                raise NameError("Error vector storage db not implemented !") 
+    def summaryse_previus_conversation(self,conversation:dict[str,str]):
+        if self._chatSettings.use_summarysation:
+            print(conversation)
+            output = self.summarizator(conversation)
+            for x,y in conversation:
+                y['methadata']['sumarization'] = output
+                x['methadata']['sumarization'] = output
+            
+        
+        pass
     @property
     def databasec(self):
         return self._database
@@ -229,12 +225,6 @@ Continuing from the previous conversation, write what {self.character_name} says
     #demo.launch(debug=True, share=True)
 
 if __name__ == "__main__":#
-    #model_path = "Xilabs/calypso-3b-alpha-v2"
-    #load_in_8bit = False
-    #model = LlamaForCausalLM.from_pretrained(
-    #    model_path, device_map="auto", load_in_8bit=load_in_8bit)
-    #tokenizer = LlamaTokenizer.from_pretrained(model_path)
-    #conv_prompt = "Two people are texting each other on a messaging platform."
     '''
     message_history = [
         (
@@ -282,6 +272,8 @@ if __name__ == "__main__":#
             case 'get_prompt':
                 print('CURRENT PROMPT'.center(50,"#"))
                 print(chat_instance.get_prompt)
+                continue
+            case '':
                 continue
             case _:
                 pass

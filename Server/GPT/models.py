@@ -150,7 +150,7 @@ class ChatBotSettings:
         > use summarization
     '''
     # class atributes
-    available_backends:ClassVar[list[str]] = ["gpt4all","transformers","transformers_nbackend"]
+    available_backends:ClassVar[list[str]] = ["gpt4all","transformers","llamacpp"]
     available_vectorStorageBackends:ClassVar[list[str]] = ["Chromadb",""]
     prompt_paths:ClassVar[str] = "prompt_paths/"
     # object attributes
@@ -161,7 +161,9 @@ class ChatBotSettings:
     full_prompt_document:str = join(prompt_paths,prompt_document)
     use_vectorStoragedb:bool = False
     use_summarysation:bool = True
-    model_path:str = r"model/"
+    max_sumarization_lengt:int = 100
+    min_sumarization_lengt:int = 20
+    model_path:str = r"model/"# model/calypso-3b-alpha-v2
     # default configuration for the calypso model replace it with 
     # the other configuration of your model
     temperature:float = 0.6
