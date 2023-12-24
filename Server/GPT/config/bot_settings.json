@@ -1,11 +1,17 @@
 {
     "backend": "transformers",
-    "vectorStorageBackend": "Chomadb",
+    "vectorStorageBackend": "Chromadb",
     "chat_buffer_size": 20,
     "prompt_document": "ranni.json",
     "full_prompt_document": "prompt_paths/ranni.json",
-    "use_vectorStoragedb": false,
+    "prompt_summarization_document": "summarization.json",
+    "prompt_sentymental_analysis_document": "sentymental.json",
+    "full_sentymental_analysis_document": "prompt_paths/sentymental.json",
+    "full_summarization_document": "prompt_paths/summarization.json",
+    "use_vectorStoragedb": true,
     "use_summarysation": true,
+    "max_sumarization_lengt": 100,
+    "min_sumarization_lengt": 20,
     "model_path": "model/calypso-3b-alpha-v2",
     "temperature": 0.6,
     "top_p": 0.75,
@@ -14,9 +20,7 @@
     "max_new_tokens": 2048,
     "repetition_penalty": 1.4,
     "early_stopping": true,
-    "load_in_8bit": true,
-    "hook_storage": 2,
-    "vector_storage_configuration_file": "chroma_db.json",
-    "max_sumarization_lengt":100,
-    "min_sumarization_lengt":20
+    "load_in_8bit": false,
+    "hook_storage": 1,
+    "vector_storage_configuration_file": "chroma_db.json"
 }

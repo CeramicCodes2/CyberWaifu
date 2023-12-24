@@ -60,8 +60,8 @@ class ModelLoader:
         self.file_raw = open(self.settings_path,'r')
         try:
             self.configs = loads(self.file_raw.read())
-        except JSONDecodeError:
-            raise NameError('BAD CONFIG FILE !')
+        except JSONDecodeError as e:
+            raise NameError(f'BAD CONFIG FILE ! \n {e}')
         try:
             self.convertEmbebedClass()
             self.configs = self.ModelClass(**self.configs)
@@ -138,8 +138,14 @@ class PromptDocument:
     def __str__(self):
         return convertObject2JsonData(self)
 
-
+@dataclass
+class GenericPrompt:
+    prompt:str
+    def __str__(self):
+        return convertObject2JsonData(self)
         
+    
+
 @dataclass
 class ChatBotSettings:
     
@@ -150,7 +156,7 @@ class ChatBotSettings:
         > use summarization
     '''
     # class atributes
-    available_backends:ClassVar[list[str]] = ["gpt4all","transformers","llamacpp"]
+    available_backends:ClassVar[list[str]] = ["gpt4all","transformers","llamacpp","debug"]
     available_vectorStorageBackends:ClassVar[list[str]] = ["Chromadb",""]
     prompt_paths:ClassVar[str] = "prompt_paths/"
     # object attributes
@@ -159,6 +165,10 @@ class ChatBotSettings:
     chat_buffer_size:int# buffer for the conversation
     prompt_document:str = "ranni.json"# this will be used for load the prompt
     full_prompt_document:str = join(prompt_paths,prompt_document)
+    prompt_summarization_document:str = "summarization.json"
+    prompt_sentymental_analysis_document:str = "sentymental.json"
+    full_sentymental_analysis_document:str = join(prompt_paths,prompt_sentymental_analysis_document)
+    full_summarization_document:str = join(prompt_paths,prompt_summarization_document)
     use_vectorStoragedb:bool = False
     use_summarysation:bool = True
     max_sumarization_lengt:int = 100
@@ -207,6 +217,9 @@ class ChatBotSettings:
             raise NameError("Excetion invalid hook storage the value need to be lees than the buffer size")
         if(self.hook_storage == 0):
             self.hook_storage = self.chat_buffer_size//2
+        if(not(all([isfile(x) for x in [self.full_prompt_document,self.full_sentymental_analysis_document,self.full_summarization_document]]))):
+            raise NameError("Unexisting template file")
+            ...
             
     def __str__(self):
         return convertObject2JsonData(self)
@@ -455,7 +468,7 @@ if __name__ == '__main__':
     #        ),
     #    baidu_trans=Baidu_trans()
     #    ))
-    #print(ChatBotSettings(backend='transformers',vectorStorageBackend='Chomadb',chat_buffer_size=20))
+    print(ChatBotSettings(backend='debug',vectorStorageBackend='Chomadb',chat_buffer_size=20))
     #
     #print(ChromaDb(chroma_config=ChromaDbClient()))
     #obj = ChatBotSettings(backend='transformers',vectorStorageBackend='Chomadb')
@@ -480,7 +493,7 @@ if __name__ == '__main__':
     #print(Google_trans())
     #with ModelLoader(configuration_name="test.json",ModelClass=Settings) as ml:
     #    print(dir(ml))
-    #    print(ml.google_trans.trans_opt)"""
+    #    print(ml.google_trans.trans_opt)
     
     chroma = ChomaDBHandler(ia_prefix="ranni")
     chroma.handler()
@@ -488,7 +501,7 @@ if __name__ == '__main__':
     #Document.sq_number = chroma.collection.count()
     #print(Document.sq_number)
     #chroma.client.delete_collection(name="ranni")
-    """
+
     chroma.createDocument(
         past_dialogue=[
             'Caballero: Mi bella princesa, estáis bien? Espero que esa bestia no os haya hecho daño. \n Princesa: Estoy bien'
@@ -506,15 +519,14 @@ princesa: Entonces ven aquí y tómalo. (Se besan apasionadamente)''']
         ['''princesa: Estoy muy agradecida por tu valentía, caballero. Has arriesgado tu vida para salvarme de las garras del dragón.
             caballero: No hay de qué, princesa. Es mi deber y mi honor servir a la corona y proteger a la reina del reino.''']
     )
-    """
+
     #chroma.createDocument(  
-    """
     chroma.collection.add(
     documents=['''princesa: Estoy muy agradecida por tu valentía, caballero. Has arriesgado tu vida para salvarme de las garras del dragón.
             caballero: No hay de qué, princesa. Es mi deber y mi honor servir a la corona y proteger a la reina del reino.'''],
         metadatas=[{'ee':'cc'}],
         ids=[str(chroma._collection.count() + 1)])
-    print(chroma.collection.get())"""
+    print(chroma.collection.get())
     rsp = chroma.collection.query(
         query_texts=[
             "caballero: recuerdas la primera vez que nos besamos ?"
@@ -546,4 +558,4 @@ princesa: Entonces ven aquí y tómalo. (Se besan apasionadamente)''']
     #    n_results=2,
     #    query_texts=["ranni: recuerdas cuando fuimos juntos"]
     #))
-    #print("ENDED")
+    #print("ENDED")"""

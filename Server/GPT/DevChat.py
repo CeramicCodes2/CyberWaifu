@@ -1,6 +1,6 @@
 #import gradio as gr
 #import torch
-from models import ModelLoader,ChatBotSettings,Settings,Google_trans,Baidu_trans,PromptDocument,ChomaDBHandler,ChromaDb,ChromaDbClient,join,Metadata
+from models import ModelLoader,ChatBotSettings,Settings,Google_trans,Baidu_trans,PromptDocument,ChomaDBHandler,ChromaDb,ChromaDbClient,join,Metadata,GenericPrompt
 from datetime import datetime
 
 class Chat:
@@ -15,8 +15,8 @@ class Chat:
         self.message_history = message_history
         self.display_messages = []# mensajes a mostrar
         self.storage_hook = self.message_history.copy()
-        
-        self._a = ''
+        self.pairRegister2Block = lambda x,y: [f"{x['speaker']}: {x['text']}",f"{y['speaker']}: {y['text']}"]
+        self._prompt = ''
         #self._database = None
         for message_pairs in message_history:
             message1, message2 = message_pairs
@@ -49,8 +49,8 @@ class Chat:
         )
         self.generator = pipeline('text-generation',do_sample=True,model=self._chatSettings.model_path,device_map="auto",max_length=self._chatSettings.max_new_tokens)
         self.conv_analysis = lambda input_data: self.generator(input_data,task="sentiment-analysis")
-        if self._chatSettings.use_summarysation:
-            self.summarizator = lambda input_data: self.generator(input_data,task="summarization",min_lengt=self._chatSettings.min_sumarization_lengt,max_length=self._chatSettings.max_sumarization_lengt)
+        #if self._chatSettings.use_summarysation:
+        #    s#elf.summarizator = lambda input_data: self.generator(input_data,task="summarization",min_length=5, max_length=20)#max_length=self._chatSettings.max_sumarization_lengt)
             
         
     def loadModel(self):
@@ -61,6 +61,8 @@ class Chat:
                 pass
             case "gpt4all":
                 pass
+            case "debug":
+                self.generator =  lambda text: [{"generated_text":text}]
 
     def load_settings(self):
         with ModelLoader("bot_settings.json",ChatBotSettings) as model:
@@ -71,6 +73,12 @@ class Chat:
             self.user_alias = ml.user_prefix
             # NOTE: if a temp was defined it will replace the default configuration temperature
             self._chatSettings.temperature = ml.temp
+        self._prompt_sentymental = ''
+        #with ModelLoader(configuration_name=self._chatSettings.full_sentymental_analysis_document,ModelClass=GenericPrompt,no_join_config_file_path=True) as ml:
+        #    self._prompt_sentymental = ml.prompt
+        with ModelLoader(configuration_name=self._chatSettings.full_summarization_document,ModelClass=GenericPrompt,no_join_config_file_path=True) as ml:
+            self._prompt_summarizator = ml.prompt
+            
         # INIT DATABASE
         self._database = ChomaDBHandler(self._prompt_document.ia_prefix)
         self._database.handler()
@@ -80,10 +88,10 @@ class Chat:
          
     @property
     def get_prompt(self):
-        return self._a
+        return self._prompt
     @get_prompt.setter
     def get_prompt(self,arg):
-        self._a = arg
+        self._prompt = arg
     def evaluate(self, message, **kwargs):#  temperature=0.6, top_p=0.75, top_k=50, num_beams=5, max_new_tokens=256, repetition_penalty=1.4,
         prompt = self.prompt_gen_chat(self.message_history, message)
         self.get_prompt = prompt
@@ -114,11 +122,12 @@ class Chat:
             metha = []
             #print(self.storage_hook)
             self.storage_hook = self.storage_hook[-self._chatSettings.hook_storage:]# recorremos
+            print("CALLING SUMMARIZATOR")
+            self.summarizator()
+            #self.sentimental_analysis(self.storage_hook)
             [ [metha.extend([x.get("methadata",False),y.get("methadata",False)]),doc.extend([f"{x['speaker']}: {x['text']}",f"{y['speaker']}: {y['text']}"])] for x,y in self.storage_hook]
             # sumarizamos
             print(doc)
-            #self.summaryse_previus_conversation(doc)
-            #self.sentimental_analysis(self.storage_hook)
             
             
             #[ sh.extend([print(x,y)]) for x,y in self.storage_hook]
@@ -136,9 +145,10 @@ class Chat:
         #return self.display_messages
     def sentimental_analysis(self,conversation):
         for x,y in conversation:
-            lysis = self.conv_analysis([x["text"],y["text"]])
-            conversation["methadata"]["sentimental_conversation"] = lysis[0]['label']
-            conversation["methadata"]["sentimental_conversation"] =lysis[1]['label']
+            print(self.pairRegister2Block(x,y))
+            lysis = self.conv_analysis(self.pairRegister2Block(x,y))
+            conversation["methadata"]["sentimental_conversation"] = lysis[0]
+            conversation["methadata"]["sentimental_conversation"] = lysis[1]
             # https://huggingface.co/docs/transformers/v4.36.1/en/quicktour#pipeline
             
     def update_conversation(self,message:str):
@@ -161,14 +171,34 @@ class Chat:
         
         display = self.reset_message_history(message,response)
         return display
+    def summarizator(self):#block:tuple[dict[str,str]]):
+        # guardar con todo el historial o solo los bloques especificos  ?
+        # por ahora solo los  bloques especificados
+        gblock = []
+        for x,y in self.storage_hook:
+            gblock.extend(self.pairRegister2Block(x,y))
+        gblock = ' \n'.join(gblock)
+        pre_summary = self._prompt_summarizator.format(messages=gblock)
+        summary = self.generator(pre_summary)[0]["generated_text"]
+        
+        #gblock = ' \n'.join([ self.pairRegister2Block(x,y) for x,y in block]) 
+        # TODO GUARDAR EN EL self.storage_hook
+        for idx,item in enumerate(self.storage_hook):
+            x,y = item
+            x['methadata']['sumarization'] = summary
+            y['methadata']['sumarization'] = summary
+            item = (x,y)
+            print("summary",item)
+            self.storage_hook[idx] = item # dict
+        #block[]
+        #print(self.storage_hook)
     def summaryse_previus_conversation(self,conversation:dict[str,str]):
         if self._chatSettings.use_summarysation:
-            print(conversation)
-            output = self.summarizator(conversation)
             for x,y in conversation:
-                y['methadata']['sumarization'] = output
-                x['methadata']['sumarization'] = output
-            
+                print(self.pairRegister2Block(x,y))
+                output = self.summarizator(self.pairRegister2Block(x,y))
+                y['methadata']['sumarization'] = output[0]
+                x['methadata']['sumarization'] = output[1]
         
         pass
     @property
@@ -209,6 +239,7 @@ Continuing from the previous conversation, write what {self.character_name} says
 ### Response:
 {self.character_name}:"""
         #print(prompt)
+        self.get_prompt = prompt
         return prompt
     def run(self,message):
             print(self.update_conversation(message=message))
