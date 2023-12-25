@@ -1,5 +1,5 @@
 {
-    "backend": "debug",
+    "backend": "transformers",
     "vectorStorageBackend": "Chromadb",
     "chat_buffer_size": 20,
     "prompt_document": "ranni.json",
@@ -21,6 +21,6 @@
     "repetition_penalty": 1.4,
     "early_stopping": true,
     "load_in_8bit": false,
-    "hook_storage": 1,
+    "hook_storage": 2,
     "vector_storage_configuration_file": "chroma_db.json"
 }

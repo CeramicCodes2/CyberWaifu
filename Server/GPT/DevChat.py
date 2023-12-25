@@ -52,7 +52,9 @@ class Chat:
         #if self._chatSettings.use_summarysation:
         #    s#elf.summarizator = lambda input_data: self.generator(input_data,task="summarization",min_length=5, max_length=20)#max_length=self._chatSettings.max_sumarization_lengt)
             
+    def llamaCpp_backend(self):
         
+        pass
     def loadModel(self):
         match self._chatSettings.backend:
             case "transformers":
@@ -178,7 +180,7 @@ class Chat:
         for x,y in self.storage_hook:
             gblock.extend(self.pairRegister2Block(x,y))
         gblock = ' \n'.join(gblock)
-        pre_summary = self._prompt_summarizator.format(messages=gblock)
+        pre_summary = self._prompt_summarizator.format(messages=gblock,ia_prefix=self._prompt_document.ia_prefix,user_prefix=self._prompt_document.user_prefix)
         summary = self.generator(pre_summary)[0]["generated_text"]
         
         #gblock = ' \n'.join([ self.pairRegister2Block(x,y) for x,y in block]) 
