@@ -202,8 +202,9 @@ class ChatBotSettings:
         https://huggingface.co/EleutherAI/gpt-neox-20b    ～35GB!
         """
         # validates the existence of the model path
-        if not(isdir(self.model_path)) or len(listdir(self.model_path)) == 0:    
-            raise NameError(f'Unexisting model download one at the follow links: \n \t\t {links}')
+        if not(isdir(self.model_path)) or len(listdir(self.model_path)) == 0:
+            if ( self.model_path.endswith('.ggml') and not(self.isfile(self.model_path))):    
+                raise NameError(f'Unexisting model download one at the follow links: \n \t\t {links}')
         if not(isfile(join(ChatBotSettings.prompt_paths,self.prompt_document))):
             print(join(ChatBotSettings.prompt_paths,self.prompt_document))
             raise NameError("the Prompt document does not exists!")

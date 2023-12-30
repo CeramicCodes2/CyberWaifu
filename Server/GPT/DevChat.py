@@ -15,12 +15,12 @@ class Chat:
         self.message_history = message_history
         self.display_messages = []# mensajes a mostrar
         self.storage_hook = self.message_history.copy()
-        self.pairRegister2Block = lambda x,y: [f"{x['speaker']}: {x['text']}",f"{y['speaker']}: {y['text']}"]
+        self.pairRegister2Block = lambda x,y: [f"{x['role']}: {x['content']}",f"{y['role']}: {y['content']}"]
         self._prompt = ''
         #self._database = None
         for message_pairs in message_history:
             message1, message2 = message_pairs
-            self.display_messages.append([message1['text'], message2['text']])
+            self.display_messages.append([message1['content'], message2['content']])
         self.loadModel()
     @property
     def database(self):
@@ -53,14 +53,23 @@ class Chat:
         #    s#elf.summarizator = lambda input_data: self.generator(input_data,task="summarization",min_length=5, max_length=20)#max_length=self._chatSettings.max_sumarization_lengt)
             
     def llamaCpp_backend(self):
-        
-        pass
+        from llama_cpp import Llama,llama_tokenize
+        self.generator = Llama(model_path=self._chatSettings.model_path,
+                               chat_format="llama-2",
+                               max_tokens=self._chatSettings.chat_buffer_size,
+                               n_gpu_layers=-1,
+                               main_gpu=0,
+                               n_ctx=1024
+                               )
+
     def loadModel(self):
         match self._chatSettings.backend:
             case "transformers":
                 self.transformer_backend()
+                self.evaluate = self.transformers_evaluate
             case "llamacpp":
-                pass
+                self.llamaCpp_backend()
+                self.evaluate = self.llama_evaluate
             case "gpt4all":
                 pass
             case "debug":
@@ -87,7 +96,6 @@ class Chat:
     
     def gpt_neo(self,prompt):
         return self.generator(prompt, do_sample=True, min_length=20, max_length=self._chatSettings.max_new_tokens)
-         
     @property
     def get_prompt(self):
         return self._prompt
@@ -95,8 +103,19 @@ class Chat:
     def get_prompt(self,arg):
         self._prompt = arg
     def evaluate(self, message, **kwargs):#  temperature=0.6, top_p=0.75, top_k=50, num_beams=5, max_new_tokens=256, repetition_penalty=1.4,
+        pass
+        #self._chatSettings.backend == 'transformers':
+        #    self.transformers_evaluate(message, **kwargs)
+        
+    def llama_evaluate(self,message,**kwargs):
+        prompt = self.llama_propt_gen_chat(self.message_history,message)
+        # print(prompt)
+        return prompt
+        
+    def transformers_evaluate(self, message, **kwargs):
         prompt = self.prompt_gen_chat(self.message_history, message)
-        self.get_prompt = prompt
+        
+        #self.get_prompt = prompt
         output = self.generator(prompt)[0]["generated_text"]
         # output = self.gpt_neo(prompt=prompt)[0]["generated_text"]
         # generator = pipeline('conversational', model=r'model/gpt-neo-125m')
@@ -127,7 +146,7 @@ class Chat:
             print("CALLING SUMMARIZATOR")
             self.summarizator()
             #self.sentimental_analysis(self.storage_hook)
-            [ [metha.extend([x.get("methadata",False),y.get("methadata",False)]),doc.extend([f"{x['speaker']}: {x['text']}",f"{y['speaker']}: {y['text']}"])] for x,y in self.storage_hook]
+            [ [metha.extend([x.get("methadata",False),y.get("methadata",False)]),doc.extend([f"{x['role']}: {x['content']}",f"{y['role']}: {y['content']}"])] for x,y in self.storage_hook]
             # sumarizamos
             print(doc)
             
@@ -158,14 +177,14 @@ class Chat:
         response = self.evaluate(message)
         self.message_history.append(
             (
-                {"speaker": self.user_alias, "text": message},
-                {"speaker": self.character_name, "text": response},
+                {"role": self.user_alias, "content": message},
+                {"role": self.character_name, "content": response},
             )
         )
         self.storage_hook.append(
             (
-                {"speaker": self.user_alias, "text": message,"methadata": {"date":str(datetime.now()),"sentimental_conversation":'',"sumarization":''}},
-                {"speaker": self.character_name, "text": response,"methadata": {"date":str(datetime.now()),"sentimental_conversation":'',"sumarization":''}},
+                {"role": self.user_alias, "content": message,"methadata": {"date":str(datetime.now()),"sentimental_conversation":'',"sumarization":''}},
+                {"role": self.character_name, "content": response,"methadata": {"date":str(datetime.now()),"sentimental_conversation":'',"sumarization":''}},
             )
         )# usar el metodo copy demandaria mayor gasto de recursos
         #self.message_history.copy()
@@ -173,7 +192,11 @@ class Chat:
         
         display = self.reset_message_history(message,response)
         return display
-    def summarizator(self):#block:tuple[dict[str,str]]):
+    def mapReduceSummarizator(self):
+        ''' not implemented yet'''
+        pass
+    def summarizator(self):
+        ''' stuff summarization requieres an llm https://python.langchain.com/docs/use_cases/summarization'''
         # guardar con todo el historial o solo los bloques especificos  ?
         # por ahora solo los  bloques especificados
         gblock = []
@@ -181,8 +204,9 @@ class Chat:
             gblock.extend(self.pairRegister2Block(x,y))
         gblock = ' \n'.join(gblock)
         pre_summary = self._prompt_summarizator.format(messages=gblock,ia_prefix=self._prompt_document.ia_prefix,user_prefix=self._prompt_document.user_prefix)
-        summary = self.generator(pre_summary)[0]["generated_text"]
-        
+        summary = self.generator(pre_summary)
+        print(summary)
+        summary = summary[0]["generated_text"]
         #gblock = ' \n'.join([ self.pairRegister2Block(x,y) for x,y in block]) 
         # TODO GUARDAR EN EL self.storage_hook
         for idx,item in enumerate(self.storage_hook):
@@ -194,24 +218,41 @@ class Chat:
             self.storage_hook[idx] = item # dict
         #block[]
         #print(self.storage_hook)
-    def summaryse_previus_conversation(self,conversation:dict[str,str]):
-        if self._chatSettings.use_summarysation:
-            for x,y in conversation:
-                print(self.pairRegister2Block(x,y))
-                output = self.summarizator(self.pairRegister2Block(x,y))
-                y['methadata']['sumarization'] = output[0]
-                x['methadata']['sumarization'] = output[1]
         
         pass
     @property
     def databasec(self):
         return self._database
+    def llama_propt_gen_chat(self,message_history,message):
+        main_dct = []
+        prp = f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request. \n ### Instruction:\n{self.conv_prompt}\n{self._prompt_document.personality}\nThe following texts are an example of something you would say: \n{self._prompt_document.text_example}"""
+        sysHist = f'''\n This is the conversation between {self.user_alias} and {self.character_name} till now: \n'''        
+        usrInput = f"""\n Continuing from the previous conversation, write what {self.character_name} says to {self.user_alias}:\n### Input:\n{self.user_alias}: {message}\n### Response:\n{self.character_name}:"""
+        main_dct.append({"role":"system","content":prp})
+        main_dct.append({"role":"system","content":sysHist})
+        main_dct.extend(self.pair2tuple(self.message_history))
+        main_dct.append({"role":"system","content":usrInput})
+        self.get_prompt = main_dct
+        print(main_dct)
+        return self.generator.create_chat_completion(
+            messages=main_dct
+        )
+    def pair2tuple(self,messages:tuple[dict[str,str]]) -> list[dict[str,str]]:
+        lstdct:tuple[dict[str,str]] = []
+        for pairs in messages:
+            x,y  = pairs
+            lstdct.append(x)
+            lstdct.append(y)
+        return lstdct
+            
+            
     def prompt_gen_chat(self, message_history, message):
         past_dialogue = []
         for message_pairs in message_history:
             message1, message2 = message_pairs
-            past_dialogue.append(f"{message1['speaker']}: {message1['text']}")
-            past_dialogue.append(f"{message2['speaker']}: {message2['text']}")
+            print(message1,message2)
+            past_dialogue.append(f"{message1['role']}: {message1['content']}")
+            past_dialogue.append(f"{message2['role']}: {message2['content']}")
         result = self._database._collection.query(
             query_texts=[message],# buscmos datos referentes al nuevo prompt e insertamos resultados
             n_results=self._database._chroma_config.top_predictions,
@@ -246,41 +287,32 @@ Continuing from the previous conversation, write what {self.character_name} says
     def run(self,message):
             print(self.update_conversation(message=message))
             #self.reset_message_history()
-    #def launch_gradio(self):
-    #with gr.Blocks(theme="JohnSmith9982/small_and_pretty") as demo:
-    #    chatbot = gr.Chatbot(elem_id="chatbot")
-    #    with gr.Row():
-    #        txt = gr.Textbox(show_label=False,
-    #                         placeholder="Enter text and press enter")
-    #    txt.submit(self.gradio_helper, txt, chatbot)
-    #    txt.submit(lambda: "", None, txt)
-    #
-    #demo.launch(debug=True, share=True)
+
 
 if __name__ == "__main__":#
     '''
     message_history = [
         (
             {
-                "speaker": "Bob",
-                "text": "Hey, Alice! How are you doing? What's the status on those reports?",
+                "role": "Bob",
+                "content": "Hey, Alice! How are you doing? What's the status on those reports?",
                 "methadata": {"date":str(str(datetime.now())),"sentimental_conversation":'',"sumarization":''}
             },
             {
-                "speaker": "Alice",
-                "text": "Hey, Bob! I'm doing well. I'm almost done with the reports. I'll send them to you by the end of the day.",
+                "role": "Alice",
+                "content": "Hey, Bob! I'm doing well. I'm almost done with the reports. I'll send them to you by the end of the day.",
                 "methadata": {"date":str(datetime.now()),"sentimental_conversation":'',"sumarization":''} 
             },
         ),
         (
             {
-                "speaker": "Bob",
-                "text": "That's great! Thanks, Alice. I'll be waiting for them. Btw, I have approved your leave for next week.",
+                "role": "Bob",
+                "content": "That's great! Thanks, Alice. I'll be waiting for them. Btw, I have approved your leave for next week.",
                 "methadata": {"date":str(datetime.now()),"sentimental_conversation":'',"sumarization":''}
             },
             {
-                "speaker": "Alice",
-                "text": "Oh, thanks, Bob! I really appreciate it. I will be sure to send you the reports before I leave. Anything else you need from me?",
+                "role": "Alice",
+                "content": "Oh, thanks, Bob! I really appreciate it. I will be sure to send you the reports before I leave. Anything else you need from me?",
                 "methadata": {"date":str(datetime.now()),"sentimental_conversation":'',"sumarization":''}
             },
         )
