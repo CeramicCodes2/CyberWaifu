@@ -50,8 +50,7 @@ class Chat:
         self.generator = pipeline('text-generation',do_sample=True,model=self._chatSettings.model_path,device_map="auto",max_length=self._chatSettings.max_new_tokens)
         self.conv_analysis = lambda input_data: self.generator(input_data,task="sentiment-analysis")
         #if self._chatSettings.use_summarysation:
-        #    s#elf.summarizator = lambda input_data: self.generator(input_data,task="summarization",min_length=5, max_length=20)#max_length=self._chatSettings.max_sumarization_lengt)
-            
+        #    s#elf.summarizator = lambda input_data: self.generator(input_data,task="summarization",min_length=5, max_length=20)#max_length=self._chatSettings.max_sumarization_lengt)       
     def llamaCpp_backend(self):
         from llama_cpp import Llama,llama_tokenize
         self.generator = Llama(model_path=self._chatSettings.model_path,
@@ -61,7 +60,6 @@ class Chat:
                                main_gpu=0,
                                n_ctx=1024
                                )
-
     def loadModel(self):
         match self._chatSettings.backend:
             case "transformers":
@@ -84,9 +82,10 @@ class Chat:
             self.user_alias = ml.user_prefix
             # NOTE: if a temp was defined it will replace the default configuration temperature
             self._chatSettings.temperature = ml.temp
-        self._prompt_sentymental = ''
-        #with ModelLoader(configuration_name=self._chatSettings.full_sentymental_analysis_document,ModelClass=GenericPrompt,no_join_config_file_path=True) as ml:
-        #    self._prompt_sentymental = ml.prompt
+        
+        #self._prompt_sentymental = ''
+        with ModelLoader(configuration_name=self._chatSettings.full_sentymental_analysis_document,ModelClass=GenericPrompt,no_join_config_file_path=True) as ml:
+            self._prompt_sentymental = ml.prompt
         with ModelLoader(configuration_name=self._chatSettings.full_summarization_document,ModelClass=GenericPrompt,no_join_config_file_path=True) as ml:
             self._prompt_summarizator = ml.prompt
             
@@ -155,6 +154,9 @@ class Chat:
             metha = [ x if x else Metadata(date=str(datetime.now())) for x in metha]
             # limpiamos datos para guardarlos
             #print(doc)#self.storage_hook[:self._chatSettings.hook_storage])
+            print("SENTYMENTAL CALL".center(50,"#"))
+            self.sentymental()
+               
             self._database.createDocument(doc,metha=metha)#[:self._chatSettings.hook_storage]))
             # al activarse se guardan los primeros elementos
             
@@ -197,6 +199,7 @@ class Chat:
         pass
     def summarizator(self):
         ''' stuff summarization requieres an llm https://python.langchain.com/docs/use_cases/summarization'''
+        
         # guardar con todo el historial o solo los bloques especificos  ?
         # por ahora solo los  bloques especificados
         gblock = []
@@ -205,7 +208,7 @@ class Chat:
         gblock = ' \n'.join(gblock)
         pre_summary = self._prompt_summarizator.format(messages=gblock,ia_prefix=self._prompt_document.ia_prefix,user_prefix=self._prompt_document.user_prefix)
         summary = self.generator(pre_summary)
-        print(summary)
+        #print(summary)
         summary = summary[0]["generated_text"]
         #gblock = ' \n'.join([ self.pairRegister2Block(x,y) for x,y in block]) 
         # TODO GUARDAR EN EL self.storage_hook
@@ -220,6 +223,19 @@ class Chat:
         #print(self.storage_hook)
         
         pass
+    def sentymental(self):
+        '''
+        sentymental analysis
+         
+        '''
+        for x,y in self.storage_hook:
+            # gblock.extend(self.pairRegister2Block(x,y))
+            pre_prompt = self._prompt_sentymental.format(message=self.pairRegister2Block(x,y),ia_prefix=self._prompt_document.ia_prefix,user_prefix=self._prompt_document.user_prefix)
+            gen = self.generator(pre_prompt)[0]["generated_text"]
+            x['methadata'][f'sentimental_conversation'] = gen
+            y['methadata'][f'sentimental_conversation'] = gen
+        #gblock = ' \n'.join([ self.pairRegister2Block(x,y) for x,y in block]) 
+        # TODO GUARDAR EN EL self.storage_hook        
     @property
     def databasec(self):
         return self._database
