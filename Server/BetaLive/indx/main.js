@@ -1,8 +1,8 @@
 // ALIAS DEFINITION
 const Live2DModel = PIXI.live2d.Live2DModel,
 Application = PIXI.Application,
-Sprite = PIXI.Sprite.from,
 live2d = PIXI.live2d;
+//Sprite = PIXI.Sprite.from,
 
 class Waifu{
     'use strict'
@@ -71,7 +71,7 @@ class Waifu{
 
         this.model.on('hit', (hitAreas) => {
             if (hitAreas.includes(hitAreaName)) {
-                console.log(`hit ${hitAreas} ${executeMotion} ${JSON.stringify(this.model.motion(executeMotion))}`)
+                //console.log(`hit ${hitAreas} ${executeMotion}`)
                 this.motion(executeMotion);
                 //this.model.expression(0);
               
@@ -79,12 +79,12 @@ class Waifu{
           });
     }
     onInteraction(){
-        this.onClickArea('Body','TapBody');
-        this.onClickArea('Head','Head');
+        //this.model.expression('goth_5');
+        //this.onClickArea('Breasts','Breasts#1');
+        //this.onClickArea('Head','Head');
         //this.addHitAreas();
     }
 }
-
 function createApp(canvasId){
     return new Application({
         view: document.getElementById(canvasId),
@@ -97,7 +97,8 @@ function createApp(canvasId){
 
 function main(){
     const app = createApp('canvas');
-    let instance = new Waifu('./adult/adult.model.json',app);
+    let instance = new Waifu('./goth/goth.model.json',app);
+    let ui_instance = new UI_GAME(app);
     window.PIXI = PIXI;
     //console.log(typeof instance.model.motion)
 }

@@ -15,7 +15,6 @@ async function main() {
 
   models.forEach((model) => {
     app.stage.addChild(model);
-
     const scaleX = (innerWidth * 0.4) / model.width;
     const scaleY = (innerHeight * 0.8) / model.height;
 
