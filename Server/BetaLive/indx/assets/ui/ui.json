@@ -354,10 +354,10 @@
 },
 "ProgressBar/Line.png":
 {
-	"frame": {"x":0,"y":0,"w":454,"h":28},
+	"frame": {"x":0,"y":0,"w":488,"h":48},
 	"rotated": false,
 	"trimmed": false,
-	"spriteSourceSize": {"x":0,"y":0,"w":454,"h":28},
+	"spriteSourceSize": {"x":0,"y":0,"w":454,"h":48},
 	"sourceSize": {"w":454,"h":28}
 },
 "Star/Large/Active.png":

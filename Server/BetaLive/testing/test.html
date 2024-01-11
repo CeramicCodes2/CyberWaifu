@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/dylanNew/live2d/webgl/Live2D/lib/live2d.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.2/dist/browser/pixi.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display/dist/index.min.js"></script>
+    <!--<script src="./test.js"></script>-->
+    <!--<script src="./main.js"></script>-->
+</head>
+<body>
+    <style>
+        #main{
+            display: flex;
+            flex-wrap: wrap;
+            flex-direction: column;
+            padding: 2rem;
+        }
+        #log{
+            font-size: 5rem;
+            font-weight: 800;
+        }
+    </style>
+    <main id="main">
+        <canvas id="canvas"></canvas>
+    </main>
+    <script>
+// Create the application helper and add its render target to the page
+let app = new PIXI.Application({ resizeTo: window,view:document.getElementById("canvas"), });
+
+PIXI.Loader.shared
+  .add("images/Background.png")
+  .add("images/Line.png")
+  .load(a);
+
+function a(){
+    const container = new PIXI.Container();
+    container.x = 0;
+    container.y = 0;
+    const texture1 = PIXI.Loader.shared.resources["images/Background.png"].texture
+    const sprite2 = new PIXI.Sprite(PIXI.Loader.shared.resources["images/Line.png"].texture);
+    const subSprite = new PIXI.Sprite(texture1);
+    sprite2.x = 0
+    sprite2.y = 0;
+    sprite2.width = 454;
+    sprite2.height = 28;
+    //texture1.frame = PIXI.Rectangle(0,0,488,48);
+    subSprite.x = 0;
+    subSprite.y = 0;
+    subSprite.width = 488;
+    sprite2.height = 48;
+    subSprite.position.set(0,0)
+    sprite2.position.set(0,0);
+    sprite2.width = subSprite.width ; // aqui lo que quiero
+    sprite2.x = 0;
+    sprite2.y = 0;
+
+    container.addChild(subSprite);
+    const subContainer = new PIXI.Container();
+    subContainer.addChild(sprite2);
+    subContainer.position.set(0,4)
+    container.addChild(subContainer)
+
+    app.stage.addChild(container);
+
+}
+    </script>
+</body>
+</html>

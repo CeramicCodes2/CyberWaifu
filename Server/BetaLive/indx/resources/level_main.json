@@ -1,0 +1,74 @@
+{
+    "SpecialButtons":[],
+    "ProgressBar":{
+        "love_level":{
+            "x":300,
+            "y":300,
+            "state":0,
+            "background":"ProgressBar/Background.png",
+            "lineLoad":"ProgressBar/Line.png",
+            "Sprite":null
+        }
+    },
+    "buttons":
+        {
+            "ArrowRight":{
+                "x":100,
+                "y":100,
+                "onClick":null,
+                "onLargeClick":null,
+                "assetKey":"Buttons/Square-Medium/ArrowLeft/Default.png",
+                "assetHover":"Buttons/Square-Medium/ArrowLeft/Hover.png",
+                "Sprite":null
+
+            },
+            "submit":{
+                "x":600,
+                "y":300,
+                "onClick":null,
+                "assetKey":"Star/Small/Unactive.png",
+                "Sprite":null
+            },
+            "sound_On":{
+                "x":400,
+                "y":400,
+                "onClick":null,
+                "Sprite":null,
+                "assetKey":"Buttons/Square-Medium/SoundOn/Default.png",
+                "assetHover":"Buttons/Square-Medium/SoundOn/Hover.png"
+            },
+            "sound_Off":{
+                "x":400,
+                "y":500,
+                "onClick":null,
+                "Sprite":null,
+                "assetKey":"Buttons/Square-Medium/SoundOff/Default.png",
+                "assetHover":"Buttons/Square-Medium/SoundOff/Hover.png"
+                
+                
+            },
+            "Box":{
+                "locked":{
+                    "assetKey":"Level/Button/Locked/Default.png",
+                    "assetHover":"Level/Button/Locked/Hover.png",
+                    "Sprite":null
+                },
+                "unocked":{
+                    "assetKey":"Level/Button/Unlocked/Default.png",
+                    "assetHover":"Level/Button/Unlocked/Hover.png",
+                    "Sprite":null
+                }
+            }
+
+
+        },
+    "text":{
+        "textArea":{
+            "x":500,
+            "y":300,
+            "onChange":null,
+            "Sprite":null
+        }
+        
+    }
+}

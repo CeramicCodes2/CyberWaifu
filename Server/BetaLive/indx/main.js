@@ -89,16 +89,30 @@ function createApp(canvasId){
     return new Application({
         view: document.getElementById(canvasId),
         autoStart: true,
-        //width:2048,height:2048,
+        //width:1024,height:1024,
         resizeTo: window,
         backgroundColor: 0x333333
       });// create the pixi app
 }
+function UI_APP(canvasId){
+    return new Application({
+        view: document.getElementById(canvasId),
+        autoStart: true,
+        width:512,height:512,
+        //resizeTo: window,
+        backgroundColor: 0x061639
+      });// create the pixi app
+}
 
-function main(){
+ function main(){
     const app = createApp('canvas');
+    //const ui = UI_APP('ui');
     let instance = new Waifu('./goth/goth.model.json',app);
-    let ui_instance = new UI_GAME(app);
+    let ui_instance = new MAIN_LEVEL(app);//UI_GAME(app);
+
+    
+    //const response = await ui_instance.loadUiSettings();
+    //ui_instance.seg();
     window.PIXI = PIXI;
     //console.log(typeof instance.model.motion)
 }
