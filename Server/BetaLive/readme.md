@@ -159,6 +159,16 @@ exacto que se presenta en el `texture atlas` de lo contrario no se mapeara corre
 |`key`| el nombre del objeto de la interfaz actual que se esta procesando por ejemplo `ArrowRight` |
 |`sprite`| el sprite del objeto actual que se procesa es util tenerlo ya que con el se puede redefinir su posicion en pantalla si se quiere hacer interactivo o en geeneral realizar operaciones|
 
+### nota importante
+ la clase `UI_GAME` despues de mapear un objeto creara un objeto con los sprites
+ que conforman la interfaz de usuario agregara algunos metadastos dependiendo del objeto es decir de si es
+ >- un boton
+> - una barra de carga
+> - una se;al
+
+el nombre de este objeto es `_spriteDict` es util para llamar recurrentemente
+a metodos como por ejemplo algun metodo para actualizar la barra de carga
+
  
 
 como se ve en el ejemplo se adjunta el evento que ejecutara.
