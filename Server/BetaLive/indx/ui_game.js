@@ -201,7 +201,9 @@ class UI_GAME{
 
 
         }
-
+    }
+    async mapTextArea(){
+        /* a text area to display the thinks what the model says or the user input */
     }
     /*
     createObjectsDict(){
@@ -259,8 +261,15 @@ class MAIN_LEVEL extends UI_GAME{
     }
     love_levelUpgradeProgress(ths,spriteBack,LoadSprite){
         //LoadSprite.width = LoadSprite.width;
-        LoadSprite.width = LoadSprite.width * 1;
-        //setInterval(async (ths)=>{LoadSprite.width = LoadSprite.width * ths._spriteDict["love_level"]["methadata"]["status"];ths._spriteDict["love_level"]["methadata"]["status"] = 0.5},100,ths);
+        /*
+        let max_level = LoadSprite.width;
+        LoadSprite.width *= 0.1;
+        ths.n = 0.5;
+
+        setInterval(async (ths,max_level)=>{
+            ths.n >= 10? ths.app.stage.removeChild(LoadSprite):((ths)=>{ths.n+= 0.3;LoadSprite.width = max_level * ths.n;console.log(ths.n)}
+        )(ths)},1000,ths,LoadSprite.width);*/
+
     }
     async rana(){
         console.log(this._spriteDict);
@@ -268,7 +277,7 @@ class MAIN_LEVEL extends UI_GAME{
     async seg(){
         await super.seg();
         await this.rana();
-        this._spriteDict.love_level.methadata.alter_state();
+        //this._spriteDict.love_level.methadata.alter_state();
 
     }
 }

@@ -2,10 +2,10 @@
     "SpecialButtons":[],
     "ProgressBar":{
         "love_level":{
-            "x":300,
-            "y":300,
+            "x":100,
+            "y":600,
             "state":1,
-            "LineLoadScale":{"w":488,"h":54,"line_height":{"x":0,"y":0}},
+            "LineLoadScale":{"w":488,"h":54,"line_height":{"x":3,"y":0}},
             "background":"ProgressBar/Background.png",
             "lineLoad":"ProgressBar/Line.png",
             "Sprite":null

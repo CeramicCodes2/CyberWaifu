@@ -6,8 +6,10 @@ live2d = PIXI.live2d;
 
 class Waifu{
     'use strict'
-    constructor(waifuPath,app){
+    constructor(waifuPath,app,useContainer){
+        // use container bandera de si se usara un contenedor en lugar de una app.stage
         this.waifuPath = waifuPath;
+        this.useContainer = useContainer;
         //this.windowSize = {width:1024,height:2048};
         this.app = app;//this.createApp();
         this.syncLoadModel();
@@ -20,7 +22,7 @@ class Waifu{
         // de desplegarlo
         this.appendToLogInfo(this.model);
 
-        this.app.stage.addChild(this.model);
+        this.useContainer === true ? this.app.addChild(this.model):this.app.stage.addChild(this.model);
         this.setModel();
         this.draggable();
         //console.log(this.model.hitAreas);
@@ -48,6 +50,8 @@ class Waifu{
         //this.model.x = 2048;
         //this.model.y = 2048;
         //this.model.scale.set(2, 2);
+        this.model.x = this.model.width - this.app.width/2 ; //- this.model.width; //+ (this.model.width);
+        this.model.y = this.model.height * 0.4; // * 0.5; //- this.model.height;
         this.model.anchor.set(0.5, 0.5);
     }
     draggable() {
@@ -107,8 +111,21 @@ function UI_APP(canvasId){
  function main(){
     const app = createApp('canvas');
     //const ui = UI_APP('ui');
-    let instance = new Waifu('./goth/goth.model.json',app);
+    let WaifuArea = new PIXI.Container();
+    WaifuArea.height = (1024 * 0.4) / app.screen.height;
+    WaifuArea.width = (1024 * 0.8) / app.screen.width;
+    const bg = Sprite.from('./assets/bg_test2.jpg');
+    bg.width = 1024;
+    bg.height = 1024;
+    console.log(WaifuArea.height);
+    console.log(WaifuArea.width)
+    WaifuArea.addChild(bg);
+    WaifuArea.position.set(600,0);
+    //app.stage.addChild(bg);
+    let instance = new Waifu('./goth/goth.model.json',WaifuArea,true);
     let ui_instance = new MAIN_LEVEL(app);//UI_GAME(app);
+
+    app.stage.addChild(WaifuArea);
 
     
     //const response = await ui_instance.loadUiSettings();
