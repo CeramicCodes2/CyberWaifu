@@ -179,7 +179,7 @@ class UI_GAME{
             const ContainerLoad  = new Container();
             ContainerBack.addChild(spriteBack);
             LoadSprite.height = value.LineLoadScale.h;
-            LoadSprite.width = value.LineLoadScale.w;
+            LoadSprite.width = value.LineLoadScale.w * value.state;
             
             ContainerLoad.addChild(LoadSprite);
             ContainerLoad.x = value.LineLoadScale.line_height.x;
@@ -228,14 +228,47 @@ class UI_GAME{
 }
 class MAIN_LEVEL extends UI_GAME{
     constructor(app){
+        
         super(app)
+        this.waitAnimation = (sprite,ths,ButtonSettings)=>setTimeout(async (ths)=>{sprite.texture = ths.assets[ButtonSettings.assetKey]},100,ths);
     }
     async objectInteraction(){
         /*funcion para crear un objeto que mapeara la referencia de la una funcion callback con una accion es decir
-        {"ArrowRight":ArrowRightOnClick}
-
+        
         */
-       return await super.objectInteraction();
+       await super.objectInteraction();
+       this.callBacks = {
+        "ArrowRightOnClick":{"event":"click","hook":this.ArrowRightOnClick},
+        "sound_OffOnClick":{"event":"click","hook":this.sound_OffOnClick},
+        "sound_OnOnClick":{"event":"click","hook":this.sound_OnOnClick},
+        "love_levelUpgradeProgress":{"hook":this.love_levelUpgradeProgress}
     }
+    }
+    ArrowRightOnClick(event,ths,ButtonSettings,key,sprite){
+        sprite.texture = ths.assets[ButtonSettings.assetHover];
+        ths.waitAnimation(sprite,ths,ButtonSettings);
+        // generar animacion
+    }
+    sound_OffOnClick(event,ths,ButtonSettings,key,sprite){
+        sprite.texture = ths.assets[ButtonSettings.assetHover];
+        ths.waitAnimation(sprite,ths,ButtonSettings);
+    }
+    sound_OnOnClick(event,ths,ButtonSettings,key,sprite){
+        sprite.texture = ths.assets[ButtonSettings.assetHover];
+        ths.waitAnimation(sprite,ths,ButtonSettings);
+    }
+    love_levelUpgradeProgress(ths,spriteBack,LoadSprite){
+        //LoadSprite.width = LoadSprite.width;
+        LoadSprite.width = LoadSprite.width * 1;
+        //setInterval(async (ths)=>{LoadSprite.width = LoadSprite.width * ths._spriteDict["love_level"]["methadata"]["status"];ths._spriteDict["love_level"]["methadata"]["status"] = 0.5},100,ths);
+    }
+    async rana(){
+        console.log(this._spriteDict);
+    }
+    async seg(){
+        await super.seg();
+        await this.rana();
+        this._spriteDict.love_level.methadata.alter_state();
 
+    }
 }
