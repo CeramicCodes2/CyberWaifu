@@ -23,7 +23,7 @@ class Waifu{
         this.app.stage.addChild(this.model);
         this.setModel();
         this.draggable();
-        console.log(this.model.hitAreas);
+        //console.log(this.model.hitAreas);
         //this.addHitAreas();
         this.onInteraction();
 
@@ -71,17 +71,17 @@ class Waifu{
 
         this.model.on('hit', (hitAreas) => {
             if (hitAreas.includes(hitAreaName)) {
-                //console.log(`hit ${hitAreas} ${executeMotion}`)
-                this.motion(executeMotion);
+                console.log(`hit ${hitAreas} ${executeMotion}`)
+                this.model.motion(executeMotion);
                 //this.model.expression(0);
               
             }
           });
     }
     onInteraction(){
-        //this.model.expression('goth_5');
-        //this.onClickArea('Breasts','Breasts#1');
-        //this.onClickArea('Head','Head');
+        this.model.expression('goth_5');
+        this.onClickArea('Breasts','Breasts#1');
+        this.onClickArea('Head','Head');
         //this.addHitAreas();
     }
 }

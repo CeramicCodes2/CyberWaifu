@@ -4,7 +4,8 @@
         "love_level":{
             "x":300,
             "y":300,
-            "state":0,
+            "state":0.3,
+            "LineLoadScale":{"w":488,"h":48,"line_height":{"x":0,"y":4}},
             "background":"ProgressBar/Background.png",
             "lineLoad":"ProgressBar/Line.png",
             "Sprite":null
@@ -70,5 +71,12 @@
             "Sprite":null
         }
         
+    },
+    "signals":{
+        "orgasm":{
+            "x":40,
+            "y":40,
+            "speed":0.006
+        }
     }
 }

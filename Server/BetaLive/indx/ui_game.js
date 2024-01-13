@@ -21,7 +21,7 @@ class UI_GAME{
         this._spriteDict = {};
         // "./assets/UI_Silent/ui_file.json"
         //this.objectInteraction();
-        loader.add(this.ui_file).load(async ()=>this.seg(this));
+        this.loader = loader.add(this.ui_file).load(async ()=>this.seg(this));
         //this.setup();
     }
     
@@ -30,6 +30,9 @@ class UI_GAME{
         this.assets = resources[this.ui_file].textures;
         await this.mapButtons();
         await this.mapBar();
+        await this.mapSignalAnimation();
+        //this._spriteDict["love_level"]["methadata"]["alter_state"]();
+
         /*
         let sp = new Sprite(this.assets['Buttons/Rect-Medium/PlayIcon/Default.png']);
         sp.eventMode = 'dynamic';
@@ -78,7 +81,14 @@ class UI_GAME{
     }
     //alu
     */
-    love_levelUpgradeProgress(){
+   /*
+    love_levelUpgradeProgress(ths,spriteBack,LoadSprite){
+        //LoadSprite.width = LoadSprite.width;
+        LoadSprite.width = LoadSprite.width *0.5;
+        //setInterval(async (ths)=>{LoadSprite.width = LoadSprite.width * ths._spriteDict["love_level"]["methadata"]["status"];ths._spriteDict["love_level"]["methadata"]["status"] = 0.5},100,ths);
+    }*/
+    orgasmHook(ths,sprite){
+        ths.app.stage.addChild(sprite);
 
     }
     async objectInteraction(){
@@ -90,11 +100,12 @@ class UI_GAME{
        this.callBacks = {
         "ArrowRightOnClick":{"event":"click","hook":this.ArrowRightOnClick},
         "sound_OffOnClick":{"event":"click","hook":this.sound_OffOnClick},
-        "sound_OnOnClick":{"event":"click","hook":this.sound_OnOnClick}
-
+        "sound_OnOnClick":{"event":"click","hook":this.sound_OnOnClick},
+        "love_levelUpgradeProgress":{"hook":this.love_levelUpgradeProgress}
+        "orgasmHook":{"hook":this.orgasmHook}
+        "orgasmHook":{"hook":this.orgasmHook}
        }*/
        this.callBacks = {
-        "love_levelUpgradeProgress":{"hook":this.love_levelUpgradeProgress}
        };
     }
     async mapButtons(){
@@ -133,6 +144,32 @@ class UI_GAME{
         // enlazamos el evento
 
     }
+    async mapSignalAnimation(){
+        /* signals like love or date or effects like in minecraft  */
+        await this.objectInteraction();
+        for(const [key,value] of Object.entries(this.jsonLevel.signals)){
+            //console.log(value.animationsFrames);
+            //console.log(this.loader)
+            //console.log(key)
+            //console.log(this.loader.resources['./assets/ui/ui.json']["data"]["animations"][key]);
+            //console.log(typeof resources[this.ui_file].data.animations.orgasm[0])
+            console.log(resources[this.ui_file].data.animations[key].forEach(txt=>txt))
+            const signalSprite = new PIXI.AnimatedSprite(resources[this.ui_file].data.animations[key].map((texture)=>this.assets[texture]))//this.loader.resources['./assets/ui/ui.json']["data"]["animations"][key]);
+            signalSprite.animationSpeed   = value.speed;
+            // the status in this case is for hook the signal (make it visible)
+            // inside the method you can make visible the signal or remove for a better preformance
+            // at start the signalas will not be visibles or added to app.stage.addChild\
+            Object.keys(this.callBacks).forEach((callback)=>
+            {
+                if(callback.startsWith(key) === true){
+                    this._spriteDict[key] =  {'sprite':signalSprite,'methadata':{'status':false,"alter_state":()=>this.callBacks[callback]["hook"](this,signalSprite)},"type":"signal"};
+                    console.log(`${key} and alter_state: mapped with ${this.callBacks[callback]["hook"]} \n ${callback}`);
+                }
+                // callback.startsWith(key) === true? spriteTemporal.on(this.callBacks[callback]["event"],(event)=>{this.callBacks[callback]["hook"](event)}):false;
+                
+            });
+        }
+    }
     async mapBar(){
         await this.objectInteraction();
         for(const [key,value] of Object.entries(this.jsonLevel.ProgressBar)){
@@ -141,15 +178,20 @@ class UI_GAME{
             const ContainerBack = new Container();
             const ContainerLoad  = new Container();
             ContainerBack.addChild(spriteBack);
-            console.log(LoadSprite.height)
+            LoadSprite.height = value.LineLoadScale.h;
+            LoadSprite.width = value.LineLoadScale.w;
+            
             ContainerLoad.addChild(LoadSprite);
+            ContainerLoad.x = value.LineLoadScale.line_height.x;
+            ContainerLoad.y = value.LineLoadScale.line_height.y;
             ContainerBack.addChild(ContainerLoad);
+
             ContainerBack.x = value.x;
             ContainerBack.y = value.y;
             Object.keys(this.callBacks).forEach((callback)=>
             {
                 if(callback.startsWith(key) === true){
-                    this._spriteDict[key] = {'spriteBack':spriteBack,"spriteFont":LoadSprite,'methadata':{'status':value.status,"alter_state":this.callBacks[callback]["hook"]},"type":"loadBar"};
+                    this._spriteDict[key] = {'spriteBack':spriteBack,"spriteFont":LoadSprite,'methadata':{'status':value.status,"alter_state":()=>this.callBacks[callback]["hook"](this,spriteBack,LoadSprite)},"type":"loadBar"};
                     console.log(`${key} and alter_state: mapped with ${this.callBacks[callback]["hook"]} \n ${callback}`);
                 }
                 // callback.startsWith(key) === true? spriteTemporal.on(this.callBacks[callback]["event"],(event)=>{this.callBacks[callback]["hook"](event)}):false;
@@ -193,6 +235,7 @@ class MAIN_LEVEL extends UI_GAME{
         {"ArrowRight":ArrowRightOnClick}
 
         */
-       return await super.objectInteraction()
+       return await super.objectInteraction();
     }
+
 }

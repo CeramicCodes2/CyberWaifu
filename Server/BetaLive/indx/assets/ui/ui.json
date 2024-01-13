@@ -354,10 +354,10 @@
 },
 "ProgressBar/Line.png":
 {
-	"frame": {"x":0,"y":0,"w":488,"h":48},
+	"frame": {"x":0,"y":0,"w":454,"h":28},
 	"rotated": false,
 	"trimmed": false,
-	"spriteSourceSize": {"x":0,"y":0,"w":454,"h":48},
+	"spriteSourceSize": {"x":0,"y":0,"w":454,"h":28},
 	"sourceSize": {"w":454,"h":28}
 },
 "Star/Large/Active.png":
@@ -448,5 +448,8 @@
 	"size": {"w":976,"h":1436},
 	"scale": "1",
 	"smartupdate": "$TexturePacker:SmartUpdate:029f2eaf29576aca2c6ec7d1f1e65ab6:bff162ed8a9827e6206cc84544a892c7:5b04aa198265472a3c5f56958d78e97b$"
+},
+"animations":{
+	"orgasm":["Star/Small/Group/2-3.png","Star/Small/Unactive.png"]
 }
 }
