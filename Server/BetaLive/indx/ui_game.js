@@ -204,6 +204,19 @@ class UI_GAME{
     }
     async mapTextArea(){
         /* a text area to display the thinks what the model says or the user input */
+        await this.objectInteraction();
+        for(const [key,value] of Object.entries(this.jsonLevel.text)){
+            const ContainerWindow = new Container();
+            const ContainerMessage = new Container();// header container for the message
+            const spriteTextArea = new Sprite(this.assets[value.assetHeader]);
+            const spriteHeaderMessage = new Sprite(this.assets[value.assetMessage]);
+            const spriteWindow = new Sprite(this.assets[value.assetWindow]);
+
+            ContainerMessage.addChild(spriteTextArea);
+
+
+        this._spriteDict[key] = {'spriteWindows':spriteBack,'methadata':{'text':"hello world","alter_state":()=>this.callBacks[callback]["hook"](this,spriteBack,LoadSprite)},"type":"text"};
+        }
     }
     /*
     createObjectsDict(){

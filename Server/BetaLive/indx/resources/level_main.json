@@ -68,7 +68,10 @@
             "x":500,
             "y":300,
             "onChange":null,
-            "Sprite":null
+            "Sprite":null,
+            "assetHeader":"Panel/Header.png",
+            "assetMessage":"Panel/Body/Headed.png",
+            "assetWindow":"Panel/Window/Big.png"
         }
         
     },
