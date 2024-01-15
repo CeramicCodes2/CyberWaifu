@@ -63,15 +63,51 @@
 
 
         },
-    "text":{
+    "textWindow":{
+            "x":1024,
+            "y":0,
+            "w":600,
+            "h":500,
+            "initialMessagePos":{
+                "x":3,
+                "y":100
+            },
+            "MessageYMultiply":100,
+            "messagePositions":[30,10],
+            "assetWindow":"Panel/Window/Big.png",
+            "fontFamilies":["Snippet"],
+            "maxMessagesOnScreen":3,
+            "marginBetweenMessages":100,
+            "separationBetweenHeader":80,
+            "assetHeader":"Panel/Header.png",
+            "assetMessage":"Panel/Body/Headed.png",
+            "headerMessagesPosition":"center",
+            "messagesPosition":"start",
+            "containerMessage":{
+                "w":25,
+                "h":25
+            },
+            "style":{
+                    "fontFamily": "Snippet",
+                    "fontSize": 50,
+                    "fill": "white",
+                    "align": "left"
+                }
+            
+
+
+    },
+    "text_specs":{
         "textArea":{
-            "x":500,
-            "y":300,
+            "belongTo":"textWindow",
             "onChange":null,
             "Sprite":null,
             "assetHeader":"Panel/Header.png",
             "assetMessage":"Panel/Body/Headed.png",
-            "assetWindow":"Panel/Window/Big.png"
+            "fontFamily": "Snippet",
+            "fontSize":50,
+            "fill":"black",
+            "align":"left" 
         }
         
     },
