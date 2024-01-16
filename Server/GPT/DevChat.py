@@ -4,8 +4,7 @@ from models import ModelLoader,ChatBotSettings,Settings,Google_trans,Baidu_trans
 from datetime import datetime
 
 class Chat:
-    def __init__(self, modelName:str, message_history=[]):
-        self.modelName = modelName
+    def __init__(self, message_history=[]):
         self.load_settings()
         self.conv_prompt = self._prompt_document.context# .format(user=self._prompt_document.user_prefix)# loads the context of the situation
         
@@ -305,6 +304,7 @@ Continuing from the previous conversation, write what {self.character_name} says
             #self.reset_message_history()
 
 
+
 if __name__ == "__main__":#
     '''
     message_history = [
@@ -334,7 +334,7 @@ if __name__ == "__main__":#
         )
     ]
     '''
-    chat_instance = Chat(modelName="calypso-3b-alpha-v2",message_history=[])
+    chat_instance = Chat(message_history=[])
     while True:
         pr = input(">>>")
         match pr:
