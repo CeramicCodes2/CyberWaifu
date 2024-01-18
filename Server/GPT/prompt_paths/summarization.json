@@ -1,3 +1,10 @@
 {
-    "prompt":"Below is an instruction that describes a task, paired with an input that provides further context. \n Write a response that appropriately completes the request.\n\n ### Instruction: \n Provide a summary of this conversation bouth {ia_prefix} and {user_prefix} \n ### conversation: \n{messages}"
+    "prompt":"Provide a summary of this conversation bouth {ia_prefix} and {user_prefix} \n ### conversation: \n{messages} \n summary:",
+    "model_configs":{
+        "max_tokens":1024,
+        "temperature":0.7,
+        "top_p": 0.75,
+        "top_k": 50,
+        "stop":["summary"]
+    }
 }

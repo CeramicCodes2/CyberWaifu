@@ -1,4 +1,10 @@
 {
-    "prompt":"Below is an instruction that describes a task, paired with an input that provides further context. \n Write a response that appropriately completes the request.\n\n ### Instruction: \n The following is a message between {user_prefix} and {ia_prefix}: \n {message} What feelings does this message evoke in you?"
-
+    "prompt":"Below is an instruction that describes a task, paired with an input that provides further context. \n Write a response that appropriately completes the request.\n\n ### Instruction: \n The following is a message between {user_prefix} and {ia_prefix}: \n {message} What feelings does this message evoke in you?",
+    "model_configs":{
+        "max_tokens":128,
+        "temperature":0.9,
+        "top_p": 0.75,
+        "top_k": 50,
+        "stop":["summary"]
+    }
 }

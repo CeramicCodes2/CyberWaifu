@@ -129,8 +129,9 @@ class PromptDocument:
     context:str
     ia_prefix:str
     user_prefix:str
-    text_example:str
+    text_example:str|list[dict[str,str]]
     personality:str
+    scrnario:str = ""
     temp:float = 0.6
     def __post_init__(self):
         if len(self.context) == 0:
@@ -141,9 +142,11 @@ class PromptDocument:
 @dataclass
 class GenericPrompt:
     prompt:str
+    model_configs:dict[str,int | str | list[str]] = None
+    # model_configs es un diccionario con configuracione especial como top_p top_k temperature etc
     def __str__(self):
         return convertObject2JsonData(self)
-        
+  
     
 
 @dataclass
@@ -156,7 +159,7 @@ class ChatBotSettings:
         > use summarization
     '''
     # class atributes
-    available_backends:ClassVar[list[str]] = ["gpt4all","transformers","llamacpp","debug"]
+    available_backends:ClassVar[list[str]] = ["gpt4all","transformers","llamacpp","debug","llama_debug"]
     available_vectorStorageBackends:ClassVar[list[str]] = ["Chromadb",""]
     prompt_paths:ClassVar[str] = "prompt_paths/"
     # object attributes

@@ -2,12 +2,24 @@
 #import torch
 from models import ModelLoader,ChatBotSettings,Settings,Google_trans,Baidu_trans,PromptDocument,ChomaDBHandler,ChromaDb,ChromaDbClient,join,Metadata,GenericPrompt
 from datetime import datetime
+import logging
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    filename='logging.log',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+#from typing import Any, Dict, Iterator, List, Optional, Tuple, Union, Protocol
+#import llama_cpp.llama_types as llama_types
+#from llama_cpp.llama_chat_format import register_chat_format,ChatFormatterResponse,_get_system_message,_map_roles,_format_chatml
+
 
 class Chat:
-    def __init__(self, message_history=[]):
+    def __init__(self, message_history=[],inject_chat_prompt=True):
         self.load_settings()
         self.conv_prompt = self._prompt_document.context# .format(user=self._prompt_document.user_prefix)# loads the context of the situation
-        
+        self.inject_chat_prompt = inject_chat_prompt
         self.user_alias = self._prompt_document.user_prefix
         self.character_name = self._prompt_document.ia_prefix
         self.chat_buffer_size = self._chatSettings.chat_buffer_size
@@ -16,6 +28,7 @@ class Chat:
         self.storage_hook = self.message_history.copy()
         self.pairRegister2Block = lambda x,y: [f"{x['role']}: {x['content']}",f"{y['role']}: {y['content']}"]
         self._prompt = ''
+        self.generator:pipeline|Llama|None = None
         #self._database = None
         for message_pairs in message_history:
             message1, message2 = message_pairs
@@ -29,8 +42,7 @@ class Chat:
         self._database.createDocument(arg)
         # save data
     def transformer_backend(self):
-        from transformers import LlamaForCausalLM, LlamaTokenizer,pipeline,GenerationConfig
-        
+        from transformers import pipeline,GenerationConfig 
         generation_config = GenerationConfig(
             temperature=self._chatSettings.temperature,
             top_p=self._chatSettings.top_p,
@@ -46,32 +58,104 @@ class Chat:
             #early_stopping=True,
             #repetition_penalty=repetition_penalty,
         )
-        self.generator = pipeline('text-generation',do_sample=True,model=self._chatSettings.model_path,device_map="auto",max_length=self._chatSettings.max_new_tokens)
+        #model = LlamaForCausalLM.from_pretrained(model=self._chatSettings.model_path,config=GenerationConfig,load_in_8bit=self._chatSettings.load_in_8bit)
+        #tokenizer = LlamaTokenizer.from_pretrained(model=self._cha)
+        pipeline('text-generation',
+                                  do_sample=True,
+                                  model=self._chatSettings.model_path,
+                                  device_map="auto",
+                                  max_length=self._chatSettings.max_new_tokens
+                                  )
         self.conv_analysis = lambda input_data: self.generator(input_data,task="sentiment-analysis")
         #if self._chatSettings.use_summarysation:
         #    s#elf.summarizator = lambda input_data: self.generator(input_data,task="summarization",min_length=5, max_length=20)#max_length=self._chatSettings.max_sumarization_lengt)       
     def llamaCpp_backend(self):
         from llama_cpp import Llama,llama_tokenize
-        self.generator = Llama(model_path=self._chatSettings.model_path,
-                               chat_format="llama-2",
+        from typing import Any, Dict, Iterator, List, Optional, Tuple, Union, Protocol
+        import llama_cpp.llama_types as llama_types
+        from llama_cpp.llama_chat_format import register_chat_format,ChatFormatterResponse,_get_system_message,_map_roles,_format_chatml
+        @register_chat_format("pygmalion_dev")
+        def format_pygmalion_dev(
+            messages: List[llama_types.ChatCompletionRequestMessage],
+            **kwargs: Any,
+        ) -> ChatFormatterResponse:
+            system_template = """<|system|>{system_message}""" 
+            # """<|system|>Enter RP mode. Pretend to be {ia_prefix} whose persona follows: \n {system_message} \n You shall reply to the user while staying in character, and generate long responses. \n <START> \n"""
+            system_message = _get_system_message(messages)
+            system_message = system_template.format(system_message=system_message,ia_prefix=self._prompt_document.ia_prefix)
+            
+            
+            _roles = {self._prompt_document.user_prefix:"<|user|>",
+                      self._prompt_document.ia_prefix:"<|model|>"
+                      } #dict(blake="<|user|>", ranni="<|model|>")
+            _sep = "\n"
+            _messages = _map_roles(messages, _roles)
+            _messages.append((_roles[self._prompt_document.ia_prefix], None))
+            _prompt = _format_chatml(system_message, _messages, _sep)
+            logging.info('CHAT FORMAT INFO'.center(50,'-'))
+            logging.info('messages')
+            logging.warn(_messages)
+            logging.info('prompt')
+            logging.error(_prompt)
+            
+            logging.info("END OF CHAT FORMAT INFO".center(50,'-'))
+            return ChatFormatterResponse(prompt=_prompt, stop=_sep)
+        self.ugenerator = Llama(model_path=self._chatSettings.model_path,
+                               chat_format="pygmalion_dev",
                                max_tokens=self._chatSettings.chat_buffer_size,
                                n_gpu_layers=-1,
                                main_gpu=0,
                                n_ctx=1024
                                )
+        self.text_completation = lambda prompt,option: self.ugenerator(prompt=prompt,**self._summarizator_model_configs) if option else self.ugenerator(prompt=prompt,**self._sentymental_model_configs)
+        # True -> summarizar False -> sentimental configs
+        #self.cg = self.ugenerator.create_chat_completion(messages,temperature=self._chatSettings.temperature,top_p=self._chatSettings.top_p,top_k=self._chatSettings.top_k)
+        
+        self.generator = lambda messages: self.ugenerator.create_chat_completion(messages,temperature=self._chatSettings.temperature,top_p=self._chatSettings.top_p,top_k=self._chatSettings.top_k)
     def loadModel(self):
         match self._chatSettings.backend:
             case "transformers":
                 self.transformer_backend()
                 self.evaluate = self.transformers_evaluate
             case "llamacpp":
+                self.use_llama = True
                 self.llamaCpp_backend()
                 self.evaluate = self.llama_evaluate
             case "gpt4all":
                 pass
             case "debug":
                 self.generator =  lambda text: [{"generated_text":text}]
-
+            case "llama_debug":
+                solve = {
+                            "id": "cmpl-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+                            "object": "text_completion",
+                            "created": 1679561337,
+                            "model": "./models/7B/llama-model.gguf",
+                            "choices": [
+                              {
+                                "text": "Q: Name the planets in the solar system? A: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune and Pluto.",
+                                "index": 0,
+                                "logprobs": None,
+                                "finish_reason": "stop"
+                              }
+                            ],
+                            "usage": {
+                              "prompt_tokens": 14,
+                              "completion_tokens": 28,
+                              "total_tokens": 42
+                            }
+                }
+                chat_solve = {'id': 'chatcmpl-dfd730c5-e868-43b0-bc89-f76e3a1848fa', 'object': 'chat.completion', 'created': 1705535043, 'model': 'model/mistral-pygmalion-7b.Q4_K_M.gguf', 'choices': [{'index': 0, 'message': {'role': 'assistant', 'content': ''}, 'finish_reason': 'stop'}], 'usage': {'prompt_tokens': 421, 'completion_tokens': 0, 'total_tokens': 421}}
+                
+                self.use_llama = True
+                self.ugenerator = lambda prompt,**kwargs: solve
+                self.text_completation = lambda prompt,option: self.ugenerator(prompt=prompt,**self._summarizator_model_configs) if option else self.ugenerator(prompt=prompt,**self._sentymental_model_configs)
+                self.generator = lambda messages: chat_solve
+                self.evaluate = self.llama_evaluate
+            
+        
+        self.resolve_backend = lambda pre_summary,use_llama,option: self.text_completation(prompt=pre_summary,option=option) if use_llama else self.generator(pre_summary)
+        
     def load_settings(self):
         with ModelLoader("bot_settings.json",ChatBotSettings) as model:
             self._chatSettings = model
@@ -84,8 +168,11 @@ class Chat:
         
         #self._prompt_sentymental = ''
         with ModelLoader(configuration_name=self._chatSettings.full_sentymental_analysis_document,ModelClass=GenericPrompt,no_join_config_file_path=True) as ml:
+            self._sentymental_model_configs = ml.model_configs
+            
             self._prompt_sentymental = ml.prompt
         with ModelLoader(configuration_name=self._chatSettings.full_summarization_document,ModelClass=GenericPrompt,no_join_config_file_path=True) as ml:
+            self._summarizator_model_configs = ml.model_configs
             self._prompt_summarizator = ml.prompt
             
         # INIT DATABASE
@@ -114,7 +201,11 @@ class Chat:
         prompt = self.prompt_gen_chat(self.message_history, message)
         
         #self.get_prompt = prompt
-        output = self.generator(prompt)[0]["generated_text"]
+        if self.use_llama:
+            output = self.generator(prompt)["choices"][0]
+        else:
+            output = self.generator(prompt)[0]["generated_text"]
+        
         # output = self.gpt_neo(prompt=prompt)[0]["generated_text"]
         # generator = pipeline('conversational', model=r'model/gpt-neo-125m')
         split_str = f"""### Response:\n{self.character_name}:"""
@@ -141,25 +232,28 @@ class Chat:
             metha = []
             #print(self.storage_hook)
             self.storage_hook = self.storage_hook[-self._chatSettings.hook_storage:]# recorremos
-            print("CALLING SUMMARIZATOR")
-            self.summarizator()
+            #print("CALLING SUMMARIZATOR")
+            logging.info('CALLING SUMMARIZATOR')
+            
+            self.summarizator(use_llama=self.use_llama)
             #self.sentimental_analysis(self.storage_hook)
             [ [metha.extend([x.get("methadata",False),y.get("methadata",False)]),doc.extend([f"{x['role']}: {x['content']}",f"{y['role']}: {y['content']}"])] for x,y in self.storage_hook]
             # sumarizamos
-            print(doc)
+            #print(doc)
+            logging.warn(doc)
             
             
             #[ sh.extend([print(x,y)]) for x,y in self.storage_hook]
             metha = [ x if x else Metadata(date=str(datetime.now())) for x in metha]
             # limpiamos datos para guardarlos
             #print(doc)#self.storage_hook[:self._chatSettings.hook_storage])
-            print("SENTYMENTAL CALL".center(50,"#"))
-            self.sentymental()
+            #logging.info("SENTYMENTAL CALL".center(50,"#"))
+            #self.sentymental()
                
             self._database.createDocument(doc,metha=metha)#[:self._chatSettings.hook_storage]))
             # al activarse se guardan los primeros elementos
             
-            print("HOOK".center(50,"#") + '\n',self.storage_hook)
+            #print("HOOK".center(50,"#") + '\n',self.storage_hook)
             #print("HOOK".center(100,"#") + "\n",self.storage_hook)
         #self.storage_hook.append([message,response])
         self.display_messages.append([message, response])
@@ -167,7 +261,7 @@ class Chat:
         #return self.display_messages
     def sentimental_analysis(self,conversation):
         for x,y in conversation:
-            print(self.pairRegister2Block(x,y))
+            #print(self.pairRegister2Block(x,y))
             lysis = self.conv_analysis(self.pairRegister2Block(x,y))
             conversation["methadata"]["sentimental_conversation"] = lysis[0]
             conversation["methadata"]["sentimental_conversation"] = lysis[1]
@@ -176,12 +270,18 @@ class Chat:
     def update_conversation(self,message:str):
         ''' update the conversation add and format the messages ''' 
         response = self.evaluate(message)
+        if self.use_llama:
+            response = response["choices"][0]["message"]["content"]
+        logging.error(response)
         self.message_history.append(
             (
                 {"role": self.user_alias, "content": message},
                 {"role": self.character_name, "content": response},
             )
         )
+        logging.info("STATUS APPEND".center(50,"="))
+        logging.warning(response)
+        logging.warning(message)
         self.storage_hook.append(
             (
                 {"role": self.user_alias, "content": message,"methadata": {"date":str(datetime.now()),"sentimental_conversation":'',"sumarization":''}},
@@ -196,7 +296,7 @@ class Chat:
     def mapReduceSummarizator(self):
         ''' not implemented yet'''
         pass
-    def summarizator(self):
+    def summarizator(self,use_llama:bool):
         ''' stuff summarization requieres an llm https://python.langchain.com/docs/use_cases/summarization'''
         
         # guardar con todo el historial o solo los bloques especificos  ?
@@ -206,9 +306,17 @@ class Chat:
             gblock.extend(self.pairRegister2Block(x,y))
         gblock = ' \n'.join(gblock)
         pre_summary = self._prompt_summarizator.format(messages=gblock,ia_prefix=self._prompt_document.ia_prefix,user_prefix=self._prompt_document.user_prefix)
-        summary = self.generator(pre_summary)
+        logging.error(pre_summary)
+        #resolve_backend = lambda use_llama,option: self.text_completation(prompt=pre_summary,option=option) if use_llama else self.generator(pre_summary)
+        summary = self.resolve_backend(pre_summary=pre_summary,use_llama=use_llama,option=True)
+        logging.info("SUMARY".center(50,"="))
+        logging.error(summary)
         #print(summary)
-        summary = summary[0]["generated_text"]
+        if use_llama:
+            summary = summary["choices"][0]["text"]
+        else:
+            summary = summary[0]["generated_text"]
+        logging.error(summary)
         #gblock = ' \n'.join([ self.pairRegister2Block(x,y) for x,y in block]) 
         # TODO GUARDAR EN EL self.storage_hook
         for idx,item in enumerate(self.storage_hook):
@@ -216,7 +324,7 @@ class Chat:
             x['methadata']['sumarization'] = summary
             y['methadata']['sumarization'] = summary
             item = (x,y)
-            print("summary",item)
+            #print("summary",item)
             self.storage_hook[idx] = item # dict
         #block[]
         #print(self.storage_hook)
@@ -230,6 +338,7 @@ class Chat:
         for x,y in self.storage_hook:
             # gblock.extend(self.pairRegister2Block(x,y))
             pre_prompt = self._prompt_sentymental.format(message=self.pairRegister2Block(x,y),ia_prefix=self._prompt_document.ia_prefix,user_prefix=self._prompt_document.user_prefix)
+            gen = self.resolve_backend(use_llama=self.use_llama,option=False)
             gen = self.generator(pre_prompt)[0]["generated_text"]
             x['methadata'][f'sentimental_conversation'] = gen
             y['methadata'][f'sentimental_conversation'] = gen
@@ -238,18 +347,34 @@ class Chat:
     @property
     def databasec(self):
         return self._database
+    def llama_injectExamples(self,main_dct):
+        logging.info("TEXT EXAMPLE".center(50,"-"))
+        logging.warn(type(self._prompt_document.text_example))
+        logging.info(self._prompt_document.text_example)
+        if not isinstance(self._prompt_document.text_example,str):
+            logging.warn('USING NOT STR OPTION'.center(10,'-'))
+            main_dct.append({"role":"system","content":"The following are comments that Ranni would say:"})
+            main_dct.extend(self._prompt_document.text_example)
+        else:
+            main_dct.append({"role":"system","content":f"The following are comments that Ranni would say: \n {self._prompt_document.text_example}"})
     def llama_propt_gen_chat(self,message_history,message):
         main_dct = []
-        prp = f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request. \n ### Instruction:\n{self.conv_prompt}\n{self._prompt_document.personality}\nThe following texts are an example of something you would say: \n{self._prompt_document.text_example}"""
+        prp = f"""{self.conv_prompt}\n{self._prompt_document.personality}"""
         sysHist = f'''\n This is the conversation between {self.user_alias} and {self.character_name} till now: \n'''        
-        usrInput = f"""\n Continuing from the previous conversation, write what {self.character_name} says to {self.user_alias}:\n### Input:\n{self.user_alias}: {message}\n### Response:\n{self.character_name}:"""
+        usrIndication = f"\n Continuing from the previous conversation, write what {self.character_name} says to {self.user_alias}\n"
+        usrInput = f"{message}\n"
         main_dct.append({"role":"system","content":prp})
+        self.llama_injectExamples(main_dct)
         main_dct.append({"role":"system","content":sysHist})
         main_dct.extend(self.pair2tuple(self.message_history))
-        main_dct.append({"role":"system","content":usrInput})
+        main_dct.append({"role":"system","content":usrIndication})
+        main_dct.append({"role":self.user_alias,"content":usrInput})
+        logging.info(main_dct)
         self.get_prompt = main_dct
-        print(main_dct)
-        return self.generator.create_chat_completion(
+        #print(main_dct)
+        
+        #logging.error(main_dct)
+        return self.generator(
             messages=main_dct
         )
     def pair2tuple(self,messages:tuple[dict[str,str]]) -> list[dict[str,str]]:
@@ -265,20 +390,23 @@ class Chat:
         past_dialogue = []
         for message_pairs in message_history:
             message1, message2 = message_pairs
-            print(message1,message2)
+            #print(message1,message2)
             past_dialogue.append(f"{message1['role']}: {message1['content']}")
             past_dialogue.append(f"{message2['role']}: {message2['content']}")
         result = self._database._collection.query(
             query_texts=[message],# buscmos datos referentes al nuevo prompt e insertamos resultados
             n_results=self._database._chroma_config.top_predictions,
         )
+        logging.info("QUERY".center(50,"="))
+        logging.warn(result)
+        
         if len(result["documents"]) != 0: # si hay un resultado
             past_dialogue.extend(result["documents"][0])# primer documento
             
         past_dialogue_formatted = "\n".join(past_dialogue)
-        
-
-        prompt = f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
+        # inject_chat = lambda: alpaca_prompt if self.inject_chat_prompt else ""
+        prompt = f"""
+        Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
 
 ### Instruction:
@@ -353,6 +481,9 @@ if __name__ == "__main__":#
             case 'get_prompt':
                 print('CURRENT PROMPT'.center(50,"#"))
                 print(chat_instance.get_prompt)
+                continue
+            case 'help':
+                print('\n'.join(["get_vdb","get_timer_vs","get_history","get_prompt"]))
                 continue
             case '':
                 continue
