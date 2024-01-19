@@ -28,6 +28,7 @@ class Chat:
         self.storage_hook = self.message_history.copy()
         self.pairRegister2Block = lambda x,y: [f"{x['role']}: {x['content']}",f"{y['role']}: {y['content']}"]
         self._prompt = ''
+        self.use_llama = False
         self.generator:pipeline|Llama|None = None
         #self._database = None
         for message_pairs in message_history:
@@ -60,7 +61,7 @@ class Chat:
         )
         #model = LlamaForCausalLM.from_pretrained(model=self._chatSettings.model_path,config=GenerationConfig,load_in_8bit=self._chatSettings.load_in_8bit)
         #tokenizer = LlamaTokenizer.from_pretrained(model=self._cha)
-        pipeline('text-generation',
+        self.generator = pipeline('text-generation',
                                   do_sample=True,
                                   model=self._chatSettings.model_path,
                                   device_map="auto",
@@ -154,8 +155,7 @@ class Chat:
                 self.evaluate = self.llama_evaluate
             
         
-        self.resolve_backend = lambda pre_summary,use_llama,option: self.text_completation(prompt=pre_summary,option=option) if use_llama else self.generator(pre_summary)
-        
+        self.resolve_backend = lambda pre_summary,use_llama,option: self.text_completation(prompt=pre_summary,option=option) if use_llama else self.generator(pre_summary)      
     def load_settings(self):
         with ModelLoader("bot_settings.json",ChatBotSettings) as model:
             self._chatSettings = model
@@ -359,9 +359,10 @@ class Chat:
             main_dct.append({"role":"system","content":f"The following are comments that Ranni would say: \n {self._prompt_document.text_example}"})
     def llama_propt_gen_chat(self,message_history,message):
         main_dct = []
-        prp = f"""{self.conv_prompt}\n{self._prompt_document.personality}"""
+        prp = f"""Enter RP mode. Pretend to be {self.character_name} whose persona follows: \n {self.conv_prompt}\n{self._prompt_document.personality} \n You shall reply to the user while staying in character, and generate long responses. \n <START> \n" 
+        """
         sysHist = f'''\n This is the conversation between {self.user_alias} and {self.character_name} till now: \n'''        
-        usrIndication = f"\n Continuing from the previous conversation, write what {self.character_name} says to {self.user_alias}\n"
+        usrIndication = f"\n You shall reply to the user while staying in character, and generate long responses. \n <START> \n"
         usrInput = f"{message}\n"
         main_dct.append({"role":"system","content":prp})
         self.llama_injectExamples(main_dct)
