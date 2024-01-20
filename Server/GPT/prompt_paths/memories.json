@@ -1,0 +1,3 @@
+{
+    "prompt":"{character_ia} remembers when this conversation happened: \n{conversation}\n{character_ia} and {user} were talking about {summary} and we were in {location} and {character_ia} was in a {sentimental} mood"           
+}

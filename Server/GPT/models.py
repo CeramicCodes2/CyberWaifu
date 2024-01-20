@@ -107,6 +107,7 @@ class ChromaDb:
     
     chroma_config:ChromaDbClient
     top_predictions:int = 3# number of predictions
+    chunk_size:int = 2# extraer el id seleccionado al consultar - 1 para generar un par de mensajes
     current_collection:str = ""# the current table for default will be used the character_ia name
     path:str = "db/"# path to save the chomadb data
     embebingFunction:str = "all-MiniLM-L6-v2"# default for chomadb
@@ -131,7 +132,7 @@ class PromptDocument:
     user_prefix:str
     text_example:str|list[dict[str,str]]
     personality:str
-    scrnario:str = ""
+    scenario:str = ""
     temp:float = 0.6
     def __post_init__(self):
         if len(self.context) == 0:
@@ -166,12 +167,15 @@ class ChatBotSettings:
     backend:str
     vectorStorageBackend:str
     chat_buffer_size:int# buffer for the conversation
+    chat_format:str = 'pygmalion_dev'
     prompt_document:str = "ranni.json"# this will be used for load the prompt
     full_prompt_document:str = join(prompt_paths,prompt_document)
     prompt_summarization_document:str = "summarization.json"
     prompt_sentymental_analysis_document:str = "sentymental.json"
+    prompt_memories_document:str = "memories.json"
     full_sentymental_analysis_document:str = join(prompt_paths,prompt_sentymental_analysis_document)
     full_summarization_document:str = join(prompt_paths,prompt_summarization_document)
+    full_memories_document:str = join(prompt_paths,prompt_memories_document)
     use_vectorStoragedb:bool = False
     use_summarysation:bool = True
     max_sumarization_lengt:int = 100
@@ -369,7 +373,7 @@ class ChomaDBHandler:
     def __init__(self,ia_prefix:str):
         self._client = None 
         self._ia_prefix = ia_prefix
-        self._collection = None
+        self._collection:chromadb.HttpClient|chromadb.PersistentClient = None
         with ModelLoader(configuration_name="bot_settings.json",ModelClass=ChatBotSettings) as ml:
             self._bot_config = ml
         with ModelLoader(configuration_name=self._bot_config.vector_storage_configuration_file,ModelClass=ChromaDb) as ml:
@@ -412,6 +416,26 @@ class ChomaDBHandler:
         self._client = chromadb.HttpClient(port=self._chroma_config.chroma_config.port,host=self._chroma_config.chroma_config.host)
         
         # executes the server
+    def extractChunkFromDB(self,message:str) ->list[str]|list:
+        # funcion para extrar datos de la base de datos
+        result = self._collection.query(
+            query_texts=[message],# buscmos datos referentes al nuevo prompt e insertamos resultados
+            n_results=self._chroma_config.top_predictions,
+        )
+        if len(result["documents"]) != 0 and not(result["documents"][0] == []): 
+            # procedemos solo si si hubo un resultado
+            print(result)
+            message_id = int(result["ids"][0][0])# solo el primer id
+            range_query = [str(x) for x in range(message_id,message_id + (self._chroma_config.chunk_size -1)) ]# restamos el mensaje que se uso para buscar el querty
+            # volvemos a consultar desde la consulta que nos dio el id por complejidad
+            chunk_response = self._collection.get(
+                ids=range_query
+            )
+            
+            
+            return chunk_response
+        return {}# diccionario vacio
+            
     def createDocument(self,past_dialogue:list[str],metha:list[dict[str,str]]):
         """ this function will be called when the sumarization_hook has been hooked """
         # las conversaciones se guardaran cada self._bot_config.chat_buffer_size
@@ -472,7 +496,7 @@ if __name__ == '__main__':
     #        ),
     #    baidu_trans=Baidu_trans()
     #    ))
-    print(ChatBotSettings(backend='debug',vectorStorageBackend='Chomadb',chat_buffer_size=20))
+    #print(ChatBotSettings(backend='debug',vectorStorageBackend='Chomadb',chat_buffer_size=20))
     #
     #print(ChromaDb(chroma_config=ChromaDbClient()))
     #obj = ChatBotSettings(backend='transformers',vectorStorageBackend='Chomadb')
@@ -489,6 +513,13 @@ if __name__ == '__main__':
     #    print(dir(ml))
     #    obj = ml
     #    print(ml.full_prompt_document)
+    chroma = ChomaDBHandler(ia_prefix="ranni")
+    chroma.handler()
+    chroma.collection = 'ranni'
+    chroma.extractChunkFromDB(
+        "ranni the witch!"
+    )
+    
     """
     #    print(ml.model_path)
     with ModelLoader(configuration_name=obj.full_prompt_document,ModelClass=PromptDocument,no_join_config_file_path=True) as ml: 

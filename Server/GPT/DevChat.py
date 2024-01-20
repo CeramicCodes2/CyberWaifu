@@ -10,10 +10,35 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
+TRANSFORMER_CHAT_FORMAT = {}
+
+def register_transformer_chat(template_name:str):
+    def callback(function):
+        TRANSFORMER_CHAT_FORMAT[template_name] = function
+        return function
+    return callback
+
+@register_transformer_chat("gpt_neo")
+def gpt_neo(user_alias,character_name,personality,text_example,conv_prompt,past_dialogue_formatted,message):
+    return f"""
+The following text describes your personality:
+
+{conv_prompt}
+
+The following texts are an example of something you would say
+{text_example}
+
+Reply to the messages made by {user_alias} according to your personality.
+
+This is the conversation between {user_alias} and {character_name} till now:
+{past_dialogue_formatted}
+
+Continuing from the previous conversation, write what {character_name} says to {user_alias}:
+{user_alias}: {message}
+{character_name}:"""
 #from typing import Any, Dict, Iterator, List, Optional, Tuple, Union, Protocol
 #import llama_cpp.llama_types as llama_types
 #from llama_cpp.llama_chat_format import register_chat_format,ChatFormatterResponse,_get_system_message,_map_roles,_format_chatml
-
 
 class Chat:
     def __init__(self, message_history=[],inject_chat_prompt=True):
@@ -28,7 +53,10 @@ class Chat:
         self.storage_hook = self.message_history.copy()
         self.pairRegister2Block = lambda x,y: [f"{x['role']}: {x['content']}",f"{y['role']}: {y['content']}"]
         self._prompt = ''
+        self._memories_message = ''
         self.use_llama = False
+        self._chat_injection_Prompt = False# use cuando ya se haya inyectado el prompt en el caso de usar create_chat
+        # para asegurarse de solo injectar el prompt una vez
         self.generator:pipeline|Llama|None = None
         #self._database = None
         for message_pairs in message_history:
@@ -102,12 +130,13 @@ class Chat:
             logging.info("END OF CHAT FORMAT INFO".center(50,'-'))
             return ChatFormatterResponse(prompt=_prompt, stop=_sep)
         self.ugenerator = Llama(model_path=self._chatSettings.model_path,
-                               chat_format="pygmalion_dev",
+                               chat_format=self._chatSettings.chat_format,#"pygmalion_dev",
                                max_tokens=self._chatSettings.chat_buffer_size,
                                n_gpu_layers=-1,
                                main_gpu=0,
                                n_ctx=1024
                                )
+        
         self.text_completation = lambda prompt,option: self.ugenerator(prompt=prompt,**self._summarizator_model_configs) if option else self.ugenerator(prompt=prompt,**self._sentymental_model_configs)
         # True -> summarizar False -> sentimental configs
         #self.cg = self.ugenerator.create_chat_completion(messages,temperature=self._chatSettings.temperature,top_p=self._chatSettings.top_p,top_k=self._chatSettings.top_k)
@@ -174,6 +203,8 @@ class Chat:
         with ModelLoader(configuration_name=self._chatSettings.full_summarization_document,ModelClass=GenericPrompt,no_join_config_file_path=True) as ml:
             self._summarizator_model_configs = ml.model_configs
             self._prompt_summarizator = ml.prompt
+        with ModelLoader(configuration_name=self._chatSettings.full_memories_document,ModelClass=GenericPrompt,no_join_config_file_path=True) as ml:
+            self._prompt_memories = ml.prompt
             
         # INIT DATABASE
         self._database = ChomaDBHandler(self._prompt_document.ia_prefix)
@@ -199,7 +230,6 @@ class Chat:
         
     def transformers_evaluate(self, message, **kwargs):
         prompt = self.prompt_gen_chat(self.message_history, message)
-        
         #self.get_prompt = prompt
         if self.use_llama:
             output = self.generator(prompt)["choices"][0]
@@ -208,8 +238,8 @@ class Chat:
         
         # output = self.gpt_neo(prompt=prompt)[0]["generated_text"]
         # generator = pipeline('conversational', model=r'model/gpt-neo-125m')
-        split_str = f"""### Response:\n{self.character_name}:"""
-        output = output.split(split_str)[1].strip()
+        #split_str = f"""### Response:\n{self.character_name}:"""
+        #output = output.split(split_str)[1].strip()
         return output
     def reset_message_history(self,message,response,save_overflow_conversation=True):
         ''' 
@@ -358,8 +388,23 @@ class Chat:
         else:
             main_dct.append({"role":"system","content":f"The following are comments that Ranni would say: \n {self._prompt_document.text_example}"})
     def llama_propt_gen_chat(self,message_history,message):
+        '''
+        como es un chat se debe de injectar el prompt al inicio 
+         
+        '''
         main_dct = []
-        prp = f"""Enter RP mode. Pretend to be {self.character_name} whose persona follows: \n {self.conv_prompt}\n{self._prompt_document.personality} \n You shall reply to the user while staying in character, and generate long responses. \n <START> \n" 
+        # prompt parainyectar recurdos
+        promptMemories = self._prompt_memories
+        if self._chat_injection_Prompt:
+            logging.warn(message_history)
+            main_dct.extend(self.pair2tuple(message_history))
+            main_dct.append({"role":self.user_alias,"content":f"{message}"})
+            self.inject_llama_memories(main_dct,message,promptMemories)
+            logging.error(main_dct)
+            return self.generator(
+                messages=main_dct
+            )
+        prp = f"""Enter RP mode. Pretend to be {self.character_name} whose persona follows: \n {self.conv_prompt}\n{self._prompt_document.personality} \n world scenario: {self._prompt_document.scenario} \n You shall reply to the user while staying in character, and generate long responses. \n <START> \n" 
         """
         sysHist = f'''\n This is the conversation between {self.user_alias} and {self.character_name} till now: \n'''        
         usrIndication = f"\n You shall reply to the user while staying in character, and generate long responses. \n <START> \n"
@@ -367,13 +412,13 @@ class Chat:
         main_dct.append({"role":"system","content":prp})
         self.llama_injectExamples(main_dct)
         main_dct.append({"role":"system","content":sysHist})
-        main_dct.extend(self.pair2tuple(self.message_history))
+        main_dct.extend(self.pair2tuple(message_history))
         main_dct.append({"role":"system","content":usrIndication})
         main_dct.append({"role":self.user_alias,"content":usrInput})
         logging.info(main_dct)
         self.get_prompt = main_dct
         #print(main_dct)
-        
+        self._chat_injection_Prompt = True
         #logging.error(main_dct)
         return self.generator(
             messages=main_dct
@@ -385,8 +430,70 @@ class Chat:
             lstdct.append(x)
             lstdct.append(y)
         return lstdct
-            
-            
+    @staticmethod
+    def convertDocument2History(memorie):
+        role,content = memorie.split(':')[0]
+        return {"role":role,"content":content}      
+    def process_memories(self,main_dct,message):
+        memories = self._database.extractChunkFromDB(message=message)
+        if memories  == {}:
+            return (None,) * 4
+        #dates = [memorie["date"] for memorie in memories]
+        
+        logging.error('awawa')
+        logging.warn(memories)
+        conversation = '\n'.join(memories["documents"])#[ x for conversation,date in zip(memories['documents'],dates)])
+        
+        summary = memories["metadatas"][0]["sumarization"]
+        sentimental_conversation = memories["metadatas"][0]["sentimental_conversation"]
+        # first date
+        date = memories["metadatas"][0]["date"]
+        
+        return conversation,summary,sentimental_conversation,date
+        # al ser un bloque solo el primero sera relevante
+        
+    def inject_llama_memories(self,main_dct:list[str],message:str,promptSystem) -> None:
+        #self.get_memories = message
+        # colocamos el query
+        #memories = self.get_memories
+        #memories = self._database.extractChunkFromDB(message=self._memories_message)
+        conversation,summary,sentimental_conversation,date = self.process_memories(main_dct,message)
+        
+        if all((conversation,summary,sentimental_conversation,date)):
+            return False 
+        prp = promptSystem.format(
+            character_ia=self._prompt_document.ia_prefix,
+            user=self._prompt_document.user_prefix,
+            location=self._prompt_document.scenario,
+            conversation=conversation,# respuesta solo de ranni o de blake
+            summary=summary,
+            sentimental=sentimental_conversation,
+            date=date
+        )
+        logging.error('REMEMBER INJECTED'.center(50,'-'))
+        logging.error(prp)
+        main_dct.append({'role':'system',"content":prp})
+        # no hay memorias que procesar
+    def inject_transformers_memories(self,past_dialogue,message):
+        print(True)
+        memories = self._database.extractChunkFromDB(message)
+        logging.error(memories)
+        if memories != {}:
+            conversation = '\n'.join(memories["documents"])#[ x for conversation,date in zip(memories['documents'],dates)])
+            summary = memories["metadatas"][0]["sumarization"]
+            sentimental_conversation = memories["metadatas"][0]["sentimental_conversation"]
+            # first date
+            date = memories["metadatas"][0]["date"]
+            past_dialogue.append(self._prompt_memories.format(
+                character_ia=self._prompt_document.ia_prefix,
+                user=self._prompt_document.user_prefix,
+                location=self._prompt_document.scenario,
+                conversation=conversation,
+                summary=summary,
+                sentimental=sentimental_conversation,
+                date=date))
+            logging.error('INJECT MEMORIES'.center(50,'-'))
+            logging.error(past_dialogue)
     def prompt_gen_chat(self, message_history, message):
         past_dialogue = []
         for message_pairs in message_history:
@@ -394,37 +501,32 @@ class Chat:
             #print(message1,message2)
             past_dialogue.append(f"{message1['role']}: {message1['content']}")
             past_dialogue.append(f"{message2['role']}: {message2['content']}")
-        result = self._database._collection.query(
-            query_texts=[message],# buscmos datos referentes al nuevo prompt e insertamos resultados
-            n_results=self._database._chroma_config.top_predictions,
-        )
-        logging.info("QUERY".center(50,"="))
-        logging.warn(result)
+        #result = self._database._collection.query(
+        #    query_texts=[message],# buscmos datos referentes al nuevo prompt e insertamos resultados
+        #    n_results=self._database._chroma_config.top_predictions,
+        #)
+        #logging.info("QUERY".center(50,"="))
+        #logging.warn(result)
         
-        if len(result["documents"]) != 0: # si hay un resultado
-            past_dialogue.extend(result["documents"][0])# primer documento
-            
+        self.inject_transformers_memories(past_dialogue=past_dialogue,message=message)
+        #if len(result["documents"]) != 0: # si hay un resultado
+        #    past_dialogue.extend(result["documents"][0])# primer documento
+        #    
         past_dialogue_formatted = "\n".join(past_dialogue)
         # inject_chat = lambda: alpaca_prompt if self.inject_chat_prompt else ""
-        prompt = f"""
-        Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
-
-
-### Instruction:
-{self.conv_prompt}
-
-{self._prompt_document.personality}
-The following texts are an example of something you would say
-{self._prompt_document.text_example}
-
-This is the conversation between {self.user_alias} and {self.character_name} till now:
-{past_dialogue_formatted}
-
-Continuing from the previous conversation, write what {self.character_name} says to {self.user_alias}:
-### Input:
-{self.user_alias}: {message}
-### Response:
-{self.character_name}:"""
+        chat_formatter = TRANSFORMER_CHAT_FORMAT.get(self._chatSettings.chat_format,None)
+        #logging.error(chat_formatter)
+        assert chat_formatter # uf its none raises an error
+        
+        prompt = chat_formatter(
+            user_alias=self.user_alias,
+            character_name=self.character_name,
+            personality=self._prompt_document.personality,
+            text_example=self._prompt_document.text_example,
+            conv_prompt=self.conv_prompt,
+            past_dialogue_formatted=past_dialogue_formatted,
+            message=message
+        )
         #print(prompt)
         self.get_prompt = prompt
         return prompt
@@ -432,37 +534,12 @@ Continuing from the previous conversation, write what {self.character_name} says
             print(self.update_conversation(message=message))
             #self.reset_message_history()
 
-
+class ChatPygmalionEmbebed:
+    ''' embebed version of  pygmalion for low resources ''' 
+    def __init__(self, message_history=[],inject_chat_prompt=True):
+        super().__init__(message_history,inject_chat_prompt)
 
 if __name__ == "__main__":#
-    '''
-    message_history = [
-        (
-            {
-                "role": "Bob",
-                "content": "Hey, Alice! How are you doing? What's the status on those reports?",
-                "methadata": {"date":str(str(datetime.now())),"sentimental_conversation":'',"sumarization":''}
-            },
-            {
-                "role": "Alice",
-                "content": "Hey, Bob! I'm doing well. I'm almost done with the reports. I'll send them to you by the end of the day.",
-                "methadata": {"date":str(datetime.now()),"sentimental_conversation":'',"sumarization":''} 
-            },
-        ),
-        (
-            {
-                "role": "Bob",
-                "content": "That's great! Thanks, Alice. I'll be waiting for them. Btw, I have approved your leave for next week.",
-                "methadata": {"date":str(datetime.now()),"sentimental_conversation":'',"sumarization":''}
-            },
-            {
-                "role": "Alice",
-                "content": "Oh, thanks, Bob! I really appreciate it. I will be sure to send you the reports before I leave. Anything else you need from me?",
-                "methadata": {"date":str(datetime.now()),"sentimental_conversation":'',"sumarization":''}
-            },
-        )
-    ]
-    '''
     chat_instance = Chat(message_history=[])
     while True:
         pr = input(">>>")

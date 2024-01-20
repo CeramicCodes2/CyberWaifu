@@ -1,5 +1,5 @@
 {
-    "prompt":"Provide a summary of this conversation bouth {ia_prefix} and {user_prefix} \n ### conversation: \n{messages} \n summary:",
+    "prompt":"Provide a summary of this conversation bouth {ia_prefix} and {user_prefix} \n conversation: \n{messages} \n summary:",
     "model_configs":{
         "max_tokens":1024,
         "temperature":0.7,

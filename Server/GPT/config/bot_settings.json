@@ -1,5 +1,5 @@
 {
-    "backend": "llamacpp",
+    "backend": "transformers",
     "vectorStorageBackend": "Chromadb",
     "chat_buffer_size": 20,
     "prompt_document": "ranni.json",
@@ -12,7 +12,8 @@
     "use_summarysation": true,
     "max_sumarization_lengt": 100,
     "min_sumarization_lengt": 20,
-    "model_path": "model/mistral-pygmalion-7b.Q4_K_M.gguf",
+    "chat_format":"gpt_neo",
+    "model_path": "model/gpt-neo-125m",
     "temperature": 0.6,
     "top_p": 0.75,
     "top_k": 50,
