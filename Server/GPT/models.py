@@ -405,11 +405,16 @@ class ChomaDBHandler:
         # parquet default config and duckdb
     def runProcessOrHttpServer(self):
         from threading import Thread# imports the module
-        t = threading.Thread(target=self.loadOnClientProcessOrHttp)
+        t = Thread(target=self.loadOnClientProcessOrHttp)
         t.start()
     def loadOnClientProcessOrHttp(self):
         import subprocess
-        r = subprocess.Popen(["chroma","run","--path",self._chroma_config.path])
+        cmd = ["chroma","run","--path",self._chroma_config.path]
+        if self._chroma_config.chroma_config.host != 'localhost':
+            cmd.insert(2,"--host")
+            cmd.insert(3,self._chroma_config.chroma_config.host)
+            print(cmd)
+        r = subprocess.Popen(cmd)
         r.wait()
         # loads 
     def httpOrProcessClient(self):
@@ -515,10 +520,6 @@ if __name__ == '__main__':
     #    print(ml.full_prompt_document)
     chroma = ChomaDBHandler(ia_prefix="ranni")
     chroma.handler()
-    chroma.collection = 'ranni'
-    chroma.extractChunkFromDB(
-        "ranni the witch!"
-    )
     
     """
     #    print(ml.model_path)

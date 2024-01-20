@@ -116,6 +116,33 @@ http://127.0.0.1:7210/<prompt>
 }
 ```
 
+## chroma termux install
+
+the better config is setting in the chroma_db.json file
+the follow configuration and 
+executing the database in other driver
+like in a raspberry pi
+
+```json
+{
+    "chroma_config": {
+        "host": "192.168.15.5",
+        "port": 8000,
+        "only_http": false
+    },
+    "top_predictions": 3,
+    "current_collection": "",
+    "path": "db/",
+    "embebingFunction": "all-MiniLM-L6-v2",
+    "mode": "server_process"
+}
+```
+
+then install on termux the pip package `chromadb-client`
+using the follow configurations:
+
+`GRPC_PYTHON_DISABLE_LIBC_COMPATIBILITY=1 GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=1 GRPC_PYTHON_BUILD_SYSTEM_ZLIB=1 GRPC_PYTHON_BUILD_SYSTEM_CARES=1 CFLAGS+=" -U__ANDROID_API__ -D__ANDROID_API__=30 -include unistd.h" LDFLAGS+=" -llog" pip install grpcio`
+`pip install chromadb-client`
 ## References
 
 **[EleutherAI/gpt-neo-125M · Hugging Face](https://huggingface.co/EleutherAI/gpt-neo-125M)**
