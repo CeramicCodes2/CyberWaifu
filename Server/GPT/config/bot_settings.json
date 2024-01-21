@@ -18,7 +18,7 @@
     "top_p": 0.75,
     "top_k": 50,
     "num_beams": 50,
-    "max_new_tokens": 2048,
+    "max_new_tokens": 2049,
     "repetition_penalty": 1.4,
     "early_stopping": true,
     "load_in_8bit": false,

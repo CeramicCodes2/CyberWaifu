@@ -124,6 +124,27 @@ class ChromaDb:
     def __str__(self):
         ddata = dict((x,y) if not(isinstance(y,ChromaDbClient)) else (x,convert2Dict(y)) for x,y in vars(self).items() if not(x.startswith("_")))
         return dumps(ddata,indent=4)
+
+@dataclass
+class HyperDb:
+    top_predictions:int = 3# number of predictions
+    chunk_size:int = 2# extraer el id seleccionado al consultar - 1 para generar un par de mensajes
+    current_collection:str = ""# the current table for default will be used the character_ia name
+    path:str = "hyperdb/"# path to save the db
+    pathDatabase:str = join(path,"db/")
+    embebingFunction:str = "all-MiniLM-L6-v2"# compatibility between chroma and hyperdb
+    pathEmbebing:str =  join(path,"embebings/")
+    def __post_init__(self):
+        if(not(isdir(self.path))):
+            raise NameError("ERROR GLOBAL DATABASE FOLDER DOES NOT EXIST")
+        if(not(isdir(self.pathDatabase))):
+            raise NameError("DATABASE DOES NOT EXIST!")
+        if(not(isdir(self.pathEmbebing))):
+            raise NameError("EMBEBBING MODEL DOES NOT EXIST! ")
+        
+    def __str__(self):
+        return convertObject2JsonData(self)
+    
 @dataclass
 class PromptDocument:
     """ use this class for make new prompts telling who the cyberwaifu are """
@@ -161,7 +182,7 @@ class ChatBotSettings:
     '''
     # class atributes
     available_backends:ClassVar[list[str]] = ["gpt4all","transformers","llamacpp","debug","llama_debug"]
-    available_vectorStorageBackends:ClassVar[list[str]] = ["Chromadb",""]
+    available_vectorStorageBackends:ClassVar[list[str]] = ["Chromadb","HyperDB",""]
     prompt_paths:ClassVar[str] = "prompt_paths/"
     # object attributes
     backend:str
@@ -369,7 +390,23 @@ class Document:
 # DATABASE Handler
 
 # from threading import th
-class ChomaDBHandler:
+from abc import ABC,abstractmethod
+class BaseHandler(ABC):
+    @absractmethod
+    def createDocument(self,doc,metha):
+        pass
+    @abstractmethod
+    def handler(self):
+        pass
+    @abstractmethod
+    def extractChunkFromDB(self,message):
+        pass
+    
+class HyperDBHandler(BaseHandler):
+    def __init__(self,ia_prefix:str):
+        pass
+
+class ChomaDBHandler(BaseHandler):
     def __init__(self,ia_prefix:str):
         self._client = None 
         self._ia_prefix = ia_prefix

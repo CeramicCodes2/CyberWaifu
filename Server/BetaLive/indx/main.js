@@ -7,12 +7,17 @@ live2d = PIXI.live2d;
 class Waifu{
     'use strict'
     constructor(waifuPath,app,useContainer){
+        // singleton for only one waifu at time
+        if (Waifu.instance) {
+            return Waifu.instance
+        }
         // use container bandera de si se usara un contenedor en lugar de una app.stage
         this.waifuPath = waifuPath;
         this.useContainer = useContainer;
         //this.windowSize = {width:1024,height:2048};
         this.app = app;//this.createApp();
         this.syncLoadModel();
+        Waifu.instance = this
     }
     appendToLogInfo(text){
         document.getElementById("log").innerHTML += `${text}\n`; 
@@ -82,10 +87,29 @@ class Waifu{
             }
           });
     }
+    mapAreaAndMotion(){
+        /*
+        esta funcion accede al archivo json
+        a las hit_areas y mapea el area a golpear con la emocion a emitir
+
+        */
+       //console.log(Object.entries(this.model.internalModel.settings.json.motions))
+        this.model.internalModel.settings.json.hit_areas.map(
+            (area)=>{
+                area.motion in this.model.internalModel.settings.json.motions ?
+                this.onClickArea(
+                    area.name,area.motion
+                ): false;
+            }
+        )
+        // moc.json file
+    }
     onInteraction(){
         this.model.expression('goth_5');
-        this.onClickArea('Breasts','Breasts#1');
-        this.onClickArea('Head','Head');
+        this.mapAreaAndMotion();
+        //this.mapAreaAndMotion();
+        //this.onClickArea('Breasts','Breasts#1');
+        //this.onClickArea('Head','Head');
         //this.addHitAreas();
     }
 }
@@ -108,7 +132,7 @@ function UI_APP(canvasId){
       });// create the pixi app
 }
 
- function main(){
+ function main(model_path){
     const app = createApp('canvas');
     //const ui = UI_APP('ui');
     let WaifuArea = new PIXI.Container();
@@ -122,9 +146,8 @@ function UI_APP(canvasId){
     WaifuArea.addChild(bg);
     WaifuArea.position.set(600,0);
     //app.stage.addChild(bg);
-    let instance = new Waifu('./goth/goth.model.json',WaifuArea,true);
+    let instance = new Waifu(model_path === undefined ? './goth/goth.model.json':model_path,WaifuArea,true);
     let ui_instance = new MAIN_LEVEL(app);//UI_GAME(app);
-
     app.stage.addChild(WaifuArea);
 
     

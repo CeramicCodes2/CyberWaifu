@@ -21,9 +21,18 @@ def register_transformer_chat(template_name:str):
 @register_transformer_chat("gpt_neo")
 def gpt_neo(user_alias,character_name,personality,text_example,conv_prompt,past_dialogue_formatted,message):
     return f"""
-The following text describes your personality:
+Let's do a role-playing game
+\n
+You must pretend that you are {character_name}
+The following text describes {character_name}'s personality:
 
 {conv_prompt}
+you must follow the following rules:
+- you must generate a response for the user {user_alias} but stop generating a response as soon as
+  you are speaking for the user.
+- Not to mention that he is a model of artificial intelligence.
+- Use a seductive and enigmatic tone of voice.
+- Respond to my questions and comments, but also ask me questions about my case.
 
 The following texts are an example of something you would say
 {text_example}
@@ -93,7 +102,7 @@ class Chat:
                                   do_sample=True,
                                   model=self._chatSettings.model_path,
                                   device_map="auto",
-                                  max_length=self._chatSettings.max_new_tokens
+                                  max_length=self._chatSettings.max_new_tokens,
                                   )
         self.conv_analysis = lambda input_data: self.generator(input_data,task="sentiment-analysis")
         #if self._chatSettings.use_summarysation:

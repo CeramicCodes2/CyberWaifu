@@ -1,6 +1,6 @@
 {
     "chroma_config": {
-        "host": "192.168.15.5",
+        "host": "localhost",
         "port": 8000,
         "only_http": false
     },
@@ -8,5 +8,5 @@
     "current_collection": "",
     "path": "db/",
     "embebingFunction": "all-MiniLM-L6-v2",
-    "mode": "server_process"
+    "mode": "client"
 }
