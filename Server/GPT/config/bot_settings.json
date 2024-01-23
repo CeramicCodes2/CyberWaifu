@@ -1,6 +1,6 @@
 {
-    "backend": "transformers",
-    "vectorStorageBackend": "Chromadb",
+    "backend": "debug",
+    "vectorStorageBackend": "HyperDB",
     "chat_buffer_size": 20,
     "prompt_document": "ranni.json",
     "full_prompt_document": "prompt_paths/ranni.json",

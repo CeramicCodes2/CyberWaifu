@@ -1,6 +1,6 @@
 #import gradio as gr
 #import torch
-from models import ModelLoader,ChatBotSettings,Settings,Google_trans,Baidu_trans,PromptDocument,ChomaDBHandler,ChromaDb,ChromaDbClient,join,Metadata,GenericPrompt
+from models import ModelLoader,ChatBotSettings,Settings,Google_trans,Baidu_trans,PromptDocument,join,Metadata,GenericPrompt
 from datetime import datetime
 import logging
 
@@ -216,7 +216,15 @@ class Chat:
             self._prompt_memories = ml.prompt
             
         # INIT DATABASE
-        self._database = ChomaDBHandler(self._prompt_document.ia_prefix)
+        handler = None
+        if self._chatSettings.vectorStorageBackend == 'Chromadb':
+            from models import ChomaDBHandler,ChromaDb,ChromaDbClient
+            handler = ChomaDBHandler(ia_prefix=self._prompt_document.ia_prefix)
+        elif self._chatSettings.vectorStorageBackend == 'HyperDB':
+            from hyperdb_handler import HyperDBHandler
+            handler = HyperDBHandler(ia_prefix=self._prompt_document.ia_prefix)
+            
+        self._database = handler
         self._database.handler()
     
     def gpt_neo(self,prompt):
