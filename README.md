@@ -1,6 +1,7 @@
 # CyberWaifu
 
-this folk implements updates in the GPT server
+this folk implements updates in the GPT server and the Live2d modul
+
 
 ## folk objectives:
 
@@ -9,6 +10,9 @@ this folk implements updates in the GPT server
 - [x] new configuration system what allow personalization of your waifu
 - [ ] a support for different backends like gpt4all,llama.cpp and text generation webui
 - [ ] implement sentimental analysis
+- [x] better implementation for live2d
+
+
 ## Introduction
 
 [CyberWaifu Server](https://github.com/jieran233/CyberWaifu/blob/main/Server) = [Flask](https://flask.palletsprojects.com) + [ ( [GPT](https://github.com/jieran233/CyberWaifu) + [Online translation](https://github.com/Animenosekai/translate) ) + [Tacotron2 / VITS](https://github.com/luoyily/MoeTTS) + [Live2D](https://github.com/jieran233/CyberWaifu/blob/main/Server/Live2D) ]
