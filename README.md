@@ -23,10 +23,8 @@ this folk implements updates in the GPT server and the Live2d modul
 
 ## Read more
 
-[./Server/GPT/README.md](https://github.com/jieran233/CyberWaifu/blob/main/Server/GPT/README.md)
-
+[./Server/GPT/README.md](https://github.com/CeramicCodes2/CyberWaifu/tree/main/Server/README.md)
 [./Server/TTS/README.md](https://github.com/jieran233/CyberWaifu/blob/main/Server/TTS/README.md)
-
 [./Server/Live2D/README.md](https://github.com/jieran233/CyberWaifu/blob/main/Server/Live2D/README.md)
-
+[./Server/BetaLive/README.md](https://github.com/CeramicCodes2/CyberWaifu/tree/main/Server/BetaLive/README.md)
 [./Client/README.md](https://github.com/jieran233/CyberWaifu/blob/main/Client/README.md)
