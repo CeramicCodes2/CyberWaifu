@@ -109,7 +109,9 @@ class HyperDBPlus(HyperDB):
         embedding_function=None,
         similarity_metric="cosine",
     ):
+        
         super().__init__(documents,vectors,key,embedding_function,similarity_metric)
+        self._collection_path:str = None
         self.hyperdb_configs = hyperdb_configs
         #self._doc_keys = self.
     def count(self) -> int:
@@ -129,6 +131,7 @@ class HyperDBPlus(HyperDB):
             documents=[''],
             metadatas=[meta or Metadata()]).toDict()
         self.add(dc)
+        self._collection_path = collection_name
         self.save(collection_name)
             
     def get_or_create_collection(self,collection_name:str):
@@ -138,10 +141,18 @@ class HyperDBPlus(HyperDB):
             self.load(fpath)
         else:
             self.create_collection(fpath)
-            
+        self._collection_path = fpath
         return self
-            
-            
+    def peek(self):
+        ''' 
+        return all registers in the database
+        '''
+        return self.documents
+        
+    def commit(self):
+        # method used for save the changes
+        self.save(self._collection_path)
+        
              
 class HyperDBHandler(BaseHandler):
     def __init__(self,ia_prefix:str):
@@ -156,6 +167,9 @@ class HyperDBHandler(BaseHandler):
         ml = join(self._hyperdb_config.pathEmbebing,self._hyperdb_config.embebingFunction)
         self._tokenizer = AutoTokenizer.from_pretrained(ml)
         self._model = AutoModel.from_pretrained(ml)
+    def __del__(self):
+        # guardamos datos
+        self.collection.commit()
     def extractChunkFromDB(self):
         pass
     def mean_pooling(self,model_output, attention_mask):
@@ -285,16 +299,6 @@ class HyperDBHandler(BaseHandler):
                 documents=past_dialogue,
                        metadatas=[metha]
                        ).toDict()
-        '''
-    [Metadata(**metha)
-                            sumarization="",
-                            #TODO: solo se realizara la sumarizacion al primer elemento despues de superar el buffer y se aplicara a todos los elementos
-                        ## en el bloque antes de superar el buffer
-                        ## hola (sumarizacion: usuario saluda) ...  buffer size alcanzado  de nuevo realiza sumarizacion
-                        ## TODO: metadatas eliminara
-                        sentimental_conversation="happy"
-        )] 
-        '''
         print("PRE DC".center(30,"#"),dc)
         
         self.collection.add(dc)
@@ -305,7 +309,15 @@ if __name__ == '__main__':
     client = HyperDBHandler(ia_prefix='ranni')
     #client.indexer()
     client.handler()
-    print(client.collection.get(3))
+    #print(client.collection.get(3))
+    client.createDocument(
+        past_dialogue=["hello ranni"],
+        metha=Metadata()
+    )
+    del client
+    
+    
+    client = HyperDBHandler(ia_prefix='ranni')
     
     #from pickle import loads
     #op = open('./hyperdb/db/ranni.pickle','rb')

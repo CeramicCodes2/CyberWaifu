@@ -160,3 +160,7 @@ venv/
 api.json
 test/
 static/
+db/*
+hyperdb/*
+*.log
+live2d-model/*
