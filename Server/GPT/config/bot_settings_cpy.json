@@ -1,6 +1,6 @@
 {
     "backend": "llamacpp",
-    "vectorStorageBackend": "Chromadb",
+    "vectorStorageBackend": "HyperDB",
     "chat_buffer_size": 20,
     "prompt_document": "ranni.json",
     "full_prompt_document": "prompt_paths/ranni.json",
@@ -22,5 +22,5 @@
     "early_stopping": true,
     "load_in_8bit": false,
     "hook_storage": 2,
-    "vector_storage_configuration_file": "chroma_db.json"
+    "vector_storage_configuration_file": "hyperdb_config.json"
 }

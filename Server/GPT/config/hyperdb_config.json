@@ -1,0 +1,11 @@
+{
+    "top_predictions": 3,
+    "chunk_size": 2,
+    "current_collection": "",
+    "path": "hyperdb",
+    "rawFilesToIndex": "hyperdb\\raw",
+    "pathDatabase": "hyperdb\\db",
+    "embebingFunction": "all-MiniLM-L6-v2",
+    "pathEmbebing": "hyperdb\\embebbing",
+    "MAX_BATCH_SIZE": 2048
+}

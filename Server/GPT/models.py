@@ -131,9 +131,11 @@ class HyperDb:
     chunk_size:int = 2# extraer el id seleccionado al consultar - 1 para generar un par de mensajes
     current_collection:str = ""# the current table for default will be used the character_ia name
     path:str = "hyperdb/"# path to save the db
-    pathDatabase:str = join(path,"db/")
+    rawFilesToIndex:str = join(path,"raw")
+    pathDatabase:str = join(path,"db")
     embebingFunction:str = "all-MiniLM-L6-v2"# compatibility between chroma and hyperdb
-    pathEmbebing:str =  join(path,"embebings/")
+    pathEmbebing:str = join(path,"embebbing")
+    MAX_BATCH_SIZE:int = 2048 
     def __post_init__(self):
         if(not(isdir(self.path))):
             raise NameError("ERROR GLOBAL DATABASE FOLDER DOES NOT EXIST")
@@ -144,7 +146,8 @@ class HyperDb:
         
     def __str__(self):
         return convertObject2JsonData(self)
-    
+ 
+     
 @dataclass
 class PromptDocument:
     """ use this class for make new prompts telling who the cyberwaifu are """
@@ -385,14 +388,15 @@ class Document:
         ddata = dict((x,y) if not(isinstance(y,Metadata)) else (x,convert2Dict(y)) for x,y in vars(self).items() if not(x.startswith("_")))
         return ddata
     
-    
 
 # DATABASE Handler
 
 # from threading import th
 from abc import ABC,abstractmethod
+
+        
 class BaseHandler(ABC):
-    @absractmethod
+    @abstractmethod
     def createDocument(self,doc,metha):
         pass
     @abstractmethod
@@ -401,10 +405,7 @@ class BaseHandler(ABC):
     @abstractmethod
     def extractChunkFromDB(self,message):
         pass
-    
-class HyperDBHandler(BaseHandler):
-    def __init__(self,ia_prefix:str):
-        pass
+
 
 class ChomaDBHandler(BaseHandler):
     def __init__(self,ia_prefix:str):
