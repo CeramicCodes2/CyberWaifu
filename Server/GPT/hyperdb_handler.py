@@ -116,11 +116,19 @@ class HyperDBPlus(HyperDB):
         #self._doc_keys = self.
     def count(self) -> int:
         ''' count operation return the number of registers existing in the db'''
-        return len(self.documents)
-    def get(self,key:int) -> dict[str,str]:
+        return len(self.documents) -1 # contamos desde cero
+    def get(self,key:int|list[int]) -> dict[str,str]:
         '''return the spected register using a key index
         using a index 
         '''
+        if isinstance(key,list):
+            elements = []
+            for item in key:
+                try:
+                    elements.append(self.documents[item])
+                except: 
+                    logging.error(f'ERROR ELEMENT ERROR {item}')
+            return elements
         return self.documents[key]#resolve the number key  
     def create_collection(self,collection_name:str,meta:list[dict[str,str]]=None):
         #self.__init__()
@@ -169,9 +177,64 @@ class HyperDBHandler(BaseHandler):
         self._model = AutoModel.from_pretrained(ml)
     def __del__(self):
         # guardamos datos
-        self.collection.commit()
-    def extractChunkFromDB(self):
-        pass
+        # self.collection.commit()
+        ...
+    def extractChunkFromDB(self,message:str) -> list[str]|list:
+        MAX_DATABASE_REGISTERS = self.collection.count() # utilizamos este valor para evitar utilizar valores que no existen si se consulta un valor que esta al final de nuestro data set 
+        result:list[tuple[dict[str,str]]] = self._collection.query(
+            query_text=message,
+            top_k=self._hyperdb_config.top_predictions
+        )
+        # logging.info(f'contente querty response {result} {not(result[0][0] == ({},))}')
+        if len(result) != 0:
+            message_id,distance = result[0]#['ids']
+            message_id = message_id['ids']
+            logging.info(message_id)
+            range_query:list[int] = [x for x in range(message_id,message_id + (self._hyperdb_config.chunk_size )) ]
+            logging.error(f'index: {range_query}')
+            chunk_response = self._collection.get(
+            key=range_query
+            )
+            # hace falta convertir a un objeto como chromadb esdecir 
+            '''
+            {
+                'ids':list[str],
+                'distances':list[float],
+                'methadatas':list[dict[str,str]],
+                'documents':list[str],
+                ...
+            }
+            
+            el objeto que hasta ahora devuelve es
+              similarities = np.dot(norm_vectors, norm_query_vector.T)
+            [{'metadatas': 
+            [{'sumarization': '', 'sentimental_conversation': 
+            '', 'date':
+            '2024-01-22 1dq7:55:17.149631'}],
+            'documents': 
+            ['blake: hello ranni', 'ranni: hi blake'],
+            'ids': 6}, 
+            
+            {'metadatas': [{'sumarization': '', 'sentimental_conversation': '', 
+            'date': '2024-01-22 17:55:17.149631'}], 'documents': ['blake: helcaaslo ranni', 'ranni: hi blake'], 'ids': 7}]
+            
+
+            '''
+            
+            #haremos uso de Document para ello 
+            if chunk_response == []:
+                return {}
+            Document.sq_number = chunk_response[0]['ids']
+            methas = []
+            docs = []
+            [(docs.extend(doc['documents']),methas.extend(doc['metadatas'])) for doc in chunk_response]
+            
+            dc = Document(
+                documents=docs,
+                metadatas=methas
+            ).toDict()
+            return dc
+        return {}
     def mean_pooling(self,model_output, attention_mask):
         '''
                 https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2
@@ -226,7 +289,6 @@ class HyperDBHandler(BaseHandler):
         for batch in batches:
             # process every batch
             response =  self.encodedInputProcess(batch)#openai.Embedding.create(input=batch, model=model)
-            logging.info(response)
             embeddings.extend(response)#np.array(item["embedding"]) for item in response["data"])
         return embeddings 
     @property
@@ -241,7 +303,7 @@ class HyperDBHandler(BaseHandler):
             logging.warn(f"ALERT COLLECTION {collection_name} DOES NOT EXISTS CREATING ...")
         self._collection = HyperDBPlus(embedding_function=self.embebbing,
                                        hyperdb_configs=self._hyperdb_config,
-                                       key = 'ids').get_or_create_collection(collection_name)
+                                       key = 'documents').get_or_create_collection(collection_name)
         # self._collection = collection_name     
     def handler(self):
         #print(self._hyperdb_config.pathEmbebing)
@@ -293,32 +355,59 @@ class HyperDBHandler(BaseHandler):
         return 0
 
     def createDocument(self,past_dialogue:list[str],metha:list[dict[str,str]]):
+        
         Document.sq_number = self._collection.count()
-        # fijamos el numero 
+        Document.hyperdb_format = True
         dc = Document(
                 documents=past_dialogue,
                        metadatas=[metha]
                        ).toDict()
+        #dc['ids'] = int(dc['ids'][0])
         print("PRE DC".center(30,"#"),dc)
-        
+        logging.info(dc)
         self.collection.add(dc)
-
+    def commit(self):
+        self.collection.commit()
+        
 if __name__ == '__main__':
     #print(HyperDb(current_collection='ranni'))
     
     client = HyperDBHandler(ia_prefix='ranni')
-    #client.indexer()
+    client.indexer()
     client.handler()
+    #print(client.collection.peek())
+    #
     #print(client.collection.get(3))
-    client.createDocument(
-        past_dialogue=["hello ranni"],
-        metha=Metadata()
-    )
-    del client
-    
-    
+    #client.createDocument(
+    #    past_dialogue=["ORDER: IRQ RANNI"],
+    #    metha=Metadata()
+    #)
+    #del client
+    print(client.extractChunkFromDB(
+        message='hello ranni'
+    ))
+    #print(client.collection.peek())
+    #client.commit()
+    #client.createDocument(
+    #    past_dialogue=["ORDER: IRQ RANNI"],
+    #    metha=Metadata()
+    #)
+    '''
     client = HyperDBHandler(ia_prefix='ranni')
+    client.indexer()
+    client.handler()
+    #print(client.collection.count())
     
+
+    #res = client.collection.query(
+    #    'IRQ',
+    #    top_k=5
+    #)
+    client.collection.commit()
+    '''
+    
+    #print(client.collection.peek())
+    #print(res)
     #from pickle import loads
     #op = open('./hyperdb/db/ranni.pickle','rb')
     #print(loads(op.read()))

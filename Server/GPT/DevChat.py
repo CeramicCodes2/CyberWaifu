@@ -284,6 +284,9 @@ class Chat:
             
             self.summarizator(use_llama=self.use_llama)
             #self.sentimental_analysis(self.storage_hook)
+            logging.info('ACKA')
+            logging.info(self.storage_hook)
+            
             [ [metha.extend([x.get("methadata",False),y.get("methadata",False)]),doc.extend([f"{x['role']}: {x['content']}",f"{y['role']}: {y['content']}"])] for x,y in self.storage_hook]
             # sumarizamos
             #print(doc)
@@ -299,7 +302,7 @@ class Chat:
                
             self._database.createDocument(doc,metha=metha)#[:self._chatSettings.hook_storage]))
             # al activarse se guardan los primeros elementos
-            
+            self._database.commit()# makes the commit
             #print("HOOK".center(50,"#") + '\n',self.storage_hook)
             #print("HOOK".center(100,"#") + "\n",self.storage_hook)
         #self.storage_hook.append([message,response])
@@ -494,7 +497,9 @@ class Chat:
     def inject_transformers_memories(self,past_dialogue,message):
         print(True)
         memories = self._database.extractChunkFromDB(message)
+        logging.error('mem'.center(50,'='))
         logging.error(memories)
+        
         if memories != {}:
             conversation = '\n'.join(memories["documents"])#[ x for conversation,date in zip(memories['documents'],dates)])
             summary = memories["metadatas"][0]["sumarization"]

@@ -364,11 +364,13 @@ class Document:
     _metha_info:ClassVar[dict[str,object]] = {
         "embebed_models":[Metadata]
     }
+    hyperdb_format:ClassVar[bool] = False
     sq_number:ClassVar[int] # use collection.count()
     metadatas:list[Metadata]
     documents:list[str]# ia prefix
     def __post_init__(self):
-        if len(self.documents) == 1:
+        
+        if len(self.documents) == 1 or Document.hyperdb_format:
             #print("FF",len(self.documents))
             self.ids = Document.sq_number + 1
         else:
@@ -405,6 +407,9 @@ class BaseHandler(ABC):
     @abstractmethod
     def extractChunkFromDB(self,message):
         pass
+    @abstractmethod
+    def commit(self):
+        ''' for save the transaction '''
 
 
 class ChomaDBHandler(BaseHandler):
@@ -522,8 +527,11 @@ class ChomaDBHandler(BaseHandler):
         self.collection = self._chroma_config.current_collection
         print(f"USING {self._chroma_config.current_collection} COLLECTION".center(20,"#"))
         return 0 
+    def commit(self):
+        # not nidded for chroma
+        pass
             # use the table 
-        #self._client = chromadb.
+        #self._client = chromadb
     #def EmbebingHuggingFaceModel(self):
     #    '''
     #    function embebing to use for create the collections in chomadb
@@ -558,6 +566,9 @@ if __name__ == '__main__':
     #    print(ml.full_prompt_document)
     chroma = ChomaDBHandler(ia_prefix="ranni")
     chroma.handler()
+    print(chroma.extractChunkFromDB(
+        'hello'
+    ))
     
     """
     #    print(ml.model_path)
