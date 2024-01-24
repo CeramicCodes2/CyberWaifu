@@ -1,6 +1,8 @@
 from flask import Flask,jsonify,request#,abort
 from DevChat import *
 from os import listdir
+from queue import Queue
+
 app = Flask(__name__)
 
 class ChatInstance(Chat):
@@ -27,6 +29,7 @@ class ChatInstance(Chat):
             wr.write(str(settings))
 chat_args = {"message_history":[]}
 chat_instance = Chat(**chat_args)
+OUTPUT_MESSAGES = Queue()
 
 @app.route("/api/models")# get models
 def getModels():
@@ -41,11 +44,13 @@ def setModel(model):
     ChatInstance.saveBotSettings(settings)
     ChatInstance.reloadModel(chat_args)
     return {"status":200}
-@app.route("/api/<text>")# input text
+@app.route("/api/<text>",methods=['POST'])# input text
 def generateText(text:str):
-    return ''
+    OUTPUT_MESSAGES.put(chat_instance.run(text))
+    return {'response':OUTPUT_MESSAGES.get()}
+
 @app.route("/api/intimacy")
-def getIntimacy(text:str):
+def getIntimacy():
     # para el nivel de intimidad
     return ''
 @app.route('/api/live2dModel')

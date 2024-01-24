@@ -10,6 +10,9 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
+import os
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+
 TRANSFORMER_CHAT_FORMAT = {}
 
 def register_transformer_chat(template_name:str):
