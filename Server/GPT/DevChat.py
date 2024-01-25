@@ -114,7 +114,31 @@ class Chat:
         from llama_cpp import Llama,llama_tokenize
         from typing import Any, Dict, Iterator, List, Optional, Tuple, Union, Protocol
         import llama_cpp.llama_types as llama_types
-        from llama_cpp.llama_chat_format import register_chat_format,ChatFormatterResponse,_get_system_message,_map_roles,_format_chatml
+        from llama_cpp.llama_chat_format import register_chat_format,_format_add_colon_single,ChatFormatterResponse,_get_system_message,_map_roles,_format_chatml
+        @register_chat_format("snoozy_dev")
+        def format_snoozy(
+            messages: List[llama_types.ChatCompletionRequestMessage],
+            **kwargs: Any,
+        ) -> ChatFormatterResponse:
+            system_template = "### Instruction:\n{system_message}"
+            default_system_message = "The prompt below is a question to answer, a task to complete, or a conversation to respond to; decide which and write an appropriate response."
+            _system_message = _get_system_message(messages)
+            _system_message = (
+                _system_message if _system_message != "" else default_system_message
+            )
+            system_message = system_template.format(system_message=_system_message)
+            _roles = {
+                self._prompt_document.user_prefix:"### Input", 
+                self._prompt_document.ia_prefix:"### Response"
+                }
+            _sep = "\n"
+            _stop = "###"
+            system_message = _system_message
+            _messages = _map_roles(messages, _roles)
+            _messages.append((_roles[self._prompt_document.ia_prefix], None))
+            _prompt = _format_add_colon_single(system_message, _messages, _sep)
+            self._prompt = _prompt
+            return ChatFormatterResponse(prompt=_prompt, stop=_stop)
         @register_chat_format("pygmalion_dev")
         def format_pygmalion_dev(
             messages: List[llama_types.ChatCompletionRequestMessage],
@@ -219,6 +243,10 @@ class Chat:
             self._prompt_memories = ml.prompt
             
         # INIT DATABASE
+        if not(self._chatSettings.use_vectorStoragedb):
+            self._database = None
+            return 0
+            
         handler = None
         if self._chatSettings.vectorStorageBackend == 'Chromadb':
             from models import ChomaDBHandler,ChromaDb,ChromaDbClient
@@ -286,33 +314,35 @@ class Chat:
             logging.info('CALLING SUMMARIZATOR')
             
             self.summarizator(use_llama=self.use_llama)
-            #self.sentimental_analysis(self.storage_hook)
-            logging.info('ACKA')
-            logging.info(self.storage_hook)
+            self.sentimental_analysis(self.storage_hook)
             
-            [ [metha.extend([x.get("methadata",False),y.get("methadata",False)]),doc.extend([f"{x['role']}: {x['content']}",f"{y['role']}: {y['content']}"])] for x,y in self.storage_hook]
-            # sumarizamos
-            #print(doc)
-            logging.warn(doc)
-            
-            
-            #[ sh.extend([print(x,y)]) for x,y in self.storage_hook]
-            metha = [ x if x else Metadata(date=str(datetime.now())) for x in metha]
-            # limpiamos datos para guardarlos
-            #print(doc)#self.storage_hook[:self._chatSettings.hook_storage])
-            #logging.info("SENTYMENTAL CALL".center(50,"#"))
-            #self.sentymental()
-               
-            self._database.createDocument(doc,metha=metha)#[:self._chatSettings.hook_storage]))
-            # al activarse se guardan los primeros elementos
-            self._database.commit()# makes the commit
-            #print("HOOK".center(50,"#") + '\n',self.storage_hook)
-            #print("HOOK".center(100,"#") + "\n",self.storage_hook)
+            if self._chatSettings.use_vectorStoragedb:
+                [ [metha.extend([x.get("methadata",False),y.get("methadata",False)]),doc.extend([f"{x['role']}: {x['content']}",f"{y['role']}: {y['content']}"])] for x,y in self.storage_hook]
+                # sumarizamos
+                #print(doc)
+                logging.warn(doc)
+
+
+                #[ sh.extend([print(x,y)]) for x,y in self.storage_hook]
+                metha = [ x if x else Metadata(date=str(datetime.now())) for x in metha]
+                # limpiamos datos para guardarlos
+                #print(doc)#self.storage_hook[:self._chatSettings.hook_storage])
+                #logging.info("SENTYMENTAL CALL".center(50,"#"))
+                #self.sentymental()
+
+                self._database.createDocument(doc,metha=metha)#[:self._chatSettings.hook_storage]))
+                # al activarse se guardan los primeros elementos
+                self._database.commit()# makes the commit
+                #print("HOOK".center(50,"#") + '\n',self.storage_hook)
+                #print("HOOK".center(100,"#") + "\n",self.storage_hook)
         #self.storage_hook.append([message,response])
         self.display_messages.append([message, response])
         return self.display_messages
         #return self.display_messages
     def sentimental_analysis(self,conversation):
+        # using transformers
+        if not(hasattr(self,'conv_analysis')):
+            return 0
         for x,y in conversation:
             #print(self.pairRegister2Block(x,y))
             lysis = self.conv_analysis(self.pairRegister2Block(x,y))

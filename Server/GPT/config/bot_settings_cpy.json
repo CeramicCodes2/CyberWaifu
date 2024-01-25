@@ -8,7 +8,7 @@
     "prompt_sentymental_analysis_document": "sentymental.json",
     "full_sentymental_analysis_document": "prompt_paths/sentymental.json",
     "full_summarization_document": "prompt_paths/summarization.json",
-    "use_vectorStoragedb": true,
+    "use_vectorStoragedb": false,
     "use_summarysation": true,
     "max_sumarization_lengt": 100,
     "min_sumarization_lengt": 20,

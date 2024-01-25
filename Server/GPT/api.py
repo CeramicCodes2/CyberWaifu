@@ -34,7 +34,7 @@ OUTPUT_MESSAGES = Queue()
 @app.route("/api/models")# get models
 def getModels():
     return jsonify(listdir('./model'))# get all the models
-@app.route("/api/<model>")# set the model
+@app.route("/api/model/<model>")# set the model
 def setModel(model):
     if(not(model in listdir('./model'))):
         #abort(404);
@@ -58,6 +58,6 @@ def getLive2dModel():
     # indicara que modelo de live2d cargar
     # dependiendo del estado de animo de la waifu
     return 'goth'
-
-
-
+@app.route('/api/motions')
+def getCurrentMotion():
+    return 'happy'
