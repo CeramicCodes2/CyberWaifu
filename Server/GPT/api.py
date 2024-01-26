@@ -30,6 +30,9 @@ class ChatInstance(Chat):
 chat_args = {"message_history":[]}
 chat_instance = Chat(**chat_args)
 OUTPUT_MESSAGES = Queue()
+VERBS = {
+    'ok':{'status':200}
+}
 
 @app.route("/api/models")# get models
 def getModels():
@@ -43,16 +46,19 @@ def setModel(model):
     settings.model_path = model
     ChatInstance.saveBotSettings(settings)
     ChatInstance.reloadModel(chat_args)
-    return {"status":200}
+    return VERBS['ok']
 @app.route("/api/<text>",methods=['POST'])# input text
 def generateText(text:str):
     OUTPUT_MESSAGES.put(chat_instance.run(text))
     return {'response':OUTPUT_MESSAGES.get()}
-
 @app.route("/api/intimacy")
 def getIntimacy():
-    # para el nivel de intimidad
-    return ''
+    return jsonify({'intimacyLevel':ChatInstance.intimacyLevel})
+@app.route("/api/intimacy/<int:intimacy>",methods=['POST'])
+def setIntimacy(intimacy:int):
+    # actualizar intimidad dependiendo del desarollo o las partes tocadas
+    ChatInstance.intimacyLevel = intimacy
+    return VERBS['ok']
 @app.route('/api/live2dModel')
 def getLive2dModel():
     # indicara que modelo de live2d cargar
@@ -61,3 +67,6 @@ def getLive2dModel():
 @app.route('/api/motions')
 def getCurrentMotion():
     return 'happy'
+@app.route('/api/touchZone/<zone>')
+def notifyTouchZone(zone:str):
+    return VERBS['ok']

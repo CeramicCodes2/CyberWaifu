@@ -125,6 +125,7 @@ class HyperDBPlus(HyperDB):
             elements = []
             for item in key:
                 try:
+                    logging.info(self.documents[item])
                     elements.append(self.documents[item])
                 except: 
                     logging.error(f'ERROR ELEMENT ERROR {item}')
@@ -190,37 +191,14 @@ class HyperDBHandler(BaseHandler):
             message_id,distance = result[0]#['ids']
             message_id = message_id['ids']
             logging.info(message_id)
-            range_query:list[int] = [x for x in range(message_id,message_id + (self._hyperdb_config.chunk_size )) ]
+            range_query:list[int] = [x for x in range(message_id,message_id + (self._hyperdb_config.chunk_size )) if x <= MAX_DATABASE_REGISTERS]
+            
             logging.error(f'index: {range_query}')
+            
             chunk_response = self._collection.get(
             key=range_query
             )
             # hace falta convertir a un objeto como chromadb esdecir 
-            '''
-            {
-                'ids':list[str],
-                'distances':list[float],
-                'methadatas':list[dict[str,str]],
-                'documents':list[str],
-                ...
-            }
-            
-            el objeto que hasta ahora devuelve es
-              similarities = np.dot(norm_vectors, norm_query_vector.T)
-            [{'metadatas': 
-            [{'sumarization': '', 'sentimental_conversation': 
-            '', 'date':
-            '2024-01-22 1dq7:55:17.149631'}],
-            'documents': 
-            ['blake: hello ranni', 'ranni: hi blake'],
-            'ids': 6}, 
-            
-            {'metadatas': [{'sumarization': '', 'sentimental_conversation': '', 
-            'date': '2024-01-22 17:55:17.149631'}], 'documents': ['blake: helcaaslo ranni', 'ranni: hi blake'], 'ids': 7}]
-            
-
-            '''
-            
             #haremos uso de Document para ello 
             if chunk_response == []:
                 return {}
@@ -228,11 +206,14 @@ class HyperDBHandler(BaseHandler):
             methas = []
             docs = []
             [(docs.extend(doc['documents']),methas.extend(doc['metadatas'])) for doc in chunk_response]
-            
+            logging.info('DOC METHAS')
+            logging.info(methas)
             dc = Document(
                 documents=docs,
                 metadatas=methas
             ).toDict()
+            logging.error('DATA DICT')
+            logging.error(dc)
             return dc
         return {}
     def mean_pooling(self,model_output, attention_mask):
@@ -358,9 +339,10 @@ class HyperDBHandler(BaseHandler):
         
         Document.sq_number = self._collection.count()
         Document.hyperdb_format = True
+        metha = metha if isinstance(metha,list) else [metha]
         dc = Document(
                 documents=past_dialogue,
-                       metadatas=[metha]
+                       metadatas=metha
                        ).toDict()
         #dc['ids'] = int(dc['ids'][0])
         print("PRE DC".center(30,"#"),dc)
@@ -373,7 +355,7 @@ if __name__ == '__main__':
     #print(HyperDb(current_collection='ranni'))
     
     client = HyperDBHandler(ia_prefix='ranni')
-    client.indexer()
+    #client.indexer()
     client.handler()
     #print(client.collection.peek())
     #
@@ -382,9 +364,11 @@ if __name__ == '__main__':
     #    past_dialogue=["ORDER: IRQ RANNI"],
     #    metha=Metadata()
     #)
+    #client.commit()
     #del client
+    #print(client.collection.peek())
     print(client.extractChunkFromDB(
-        message='hello ranni'
+        message='jcka'
     ))
     #print(client.collection.peek())
     #client.commit()

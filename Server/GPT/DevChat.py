@@ -51,7 +51,8 @@ Continuing from the previous conversation, write what {character_name} says to {
 #from typing import Any, Dict, Iterator, List, Optional, Tuple, Union, Protocol
 #import llama_cpp.llama_types as llama_types
 #from llama_cpp.llama_chat_format import register_chat_format,ChatFormatterResponse,_get_system_message,_map_roles,_format_chatml
-
+def cute_print(name,age):
+    print(name,age)
 class Chat:
     def __init__(self, message_history=[],inject_chat_prompt=True):
         self.load_settings()
@@ -110,7 +111,7 @@ class Chat:
         self.conv_analysis = lambda input_data: self.generator(input_data,task="sentiment-analysis")
         #if self._chatSettings.use_summarysation:
         #    s#elf.summarizator = lambda input_data: self.generator(input_data,task="summarization",min_length=5, max_length=20)#max_length=self._chatSettings.max_sumarization_lengt)       
-    def llamaCpp_backend(self):
+    def llamaCpp_backend(self): 
         from llama_cpp import Llama,llama_tokenize
         from typing import Any, Dict, Iterator, List, Optional, Tuple, Union, Protocol
         import llama_cpp.llama_types as llama_types
@@ -189,6 +190,9 @@ class Chat:
                 self.evaluate = self.llama_evaluate
             case "gpt4all":
                 pass
+            case 'test':
+                self.functionCallingTesting()
+                
             case "debug":
                 self.generator =  lambda text: [{"generated_text":text}]
             case "llama_debug":
@@ -257,7 +261,26 @@ class Chat:
             
         self._database = handler
         self._database.handler()
-    
+    @property
+    def intimacyLevel(self):
+        return self._prompt_document.intimacy_level
+    @intimacyLevel.setter
+    def intimacyLevel(self,updateValue:int):
+        self._prompt_document.intimacy_level += updateValue
+
+        
+    def extractSpecialWords(self):
+        ''' 
+        this function will be used for extract relevant words from a response of an ia
+        for proposes of increment the intimacy level
+        '''
+        
+        pass
+    def updatePromptValues(self):
+        ''' metodo usado para actualizar valores como el nivel de intimidad '''
+        with open(self._chatSettings.prompt_document,'w') as wd:
+            wd.write(str(self._prompt_document))
+        
     def gpt_neo(self,prompt):
         return self.generator(prompt, do_sample=True, min_length=20, max_length=self._chatSettings.max_new_tokens)
     @property
@@ -320,16 +343,12 @@ class Chat:
                 [ [metha.extend([x.get("methadata",False),y.get("methadata",False)]),doc.extend([f"{x['role']}: {x['content']}",f"{y['role']}: {y['content']}"])] for x,y in self.storage_hook]
                 # sumarizamos
                 #print(doc)
-                logging.warn(doc)
 
 
                 #[ sh.extend([print(x,y)]) for x,y in self.storage_hook]
                 metha = [ x if x else Metadata(date=str(datetime.now())) for x in metha]
                 # limpiamos datos para guardarlos
-                #print(doc)#self.storage_hook[:self._chatSettings.hook_storage])
-                #logging.info("SENTYMENTAL CALL".center(50,"#"))
                 #self.sentymental()
-
                 self._database.createDocument(doc,metha=metha)#[:self._chatSettings.hook_storage]))
                 # al activarse se guardan los primeros elementos
                 self._database.commit()# makes the commit
@@ -339,16 +358,34 @@ class Chat:
         self.display_messages.append([message, response])
         return self.display_messages
         #return self.display_messages
+    def transformerSpecializedSentymentalAnalysis(self,conversation):
+        ''' carga un modelo especializado para clasificacion de texto '''
+        from transformers import pipeline
+        conv_analysis =  pipeline(f'./model/{self._chatSettings.specialized_sentymental_model}')
+        for x,y in conversation:
+            #print(self.pairRegister2Block(x,y))
+            user = conv_analysis(x['content'])
+            ia = conv_analysis(y['content'])
+            conversation["methadata"]["sentimental_conversation"] = user
+            conversation["methadata"]["sentimental_conversation"] = ia
     def sentimental_analysis(self,conversation):
         # using transformers
-        if not(hasattr(self,'conv_analysis')):
+        if not(self._chatSettings.use_sentymental_analysis):
             return 0
+        if not(hasattr(self,'conv_analysis')):
+            # asumimos que no se usa el backend transformers
+            # al activar el uso de sentimientos tendremos que cargar transformers con un modelo para esto
+            
+            return 0
+        if self._chatSettings.backend != 'transformers':
+           return self.transformerSpecializedSentymentalAnalysis(conversation) 
         for x,y in conversation:
             #print(self.pairRegister2Block(x,y))
             lysis = self.conv_analysis(self.pairRegister2Block(x,y))
             conversation["methadata"]["sentimental_conversation"] = lysis[0]
             conversation["methadata"]["sentimental_conversation"] = lysis[1]
             # https://huggingface.co/docs/transformers/v4.36.1/en/quicktour#pipeline
+        
             
     def update_conversation(self,message:str):
         ''' update the conversation add and format the messages ''' 
@@ -381,6 +418,9 @@ class Chat:
         pass
     def summarizator(self,use_llama:bool):
         ''' stuff summarization requieres an llm https://python.langchain.com/docs/use_cases/summarization'''
+        if not(self._chatSettings.use_summarysation):
+            return 0
+        # si es falso no se usara
         
         # guardar con todo el historial o solo los bloques especificos  ?
         # por ahora solo los  bloques especificados
@@ -495,8 +535,8 @@ class Chat:
         
         logging.error('awawa')
         logging.warn(memories)
+        logging.warn(message)
         conversation = '\n'.join(memories["documents"])#[ x for conversation,date in zip(memories['documents'],dates)])
-        
         summary = memories["metadatas"][0]["sumarization"]
         sentimental_conversation = memories["metadatas"][0]["sentimental_conversation"]
         # first date

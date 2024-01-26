@@ -147,10 +147,96 @@ class HyperDb:
     def __str__(self):
         return convertObject2JsonData(self)
  
-     
+
+
+@dataclass
+class properties:
+    name:dict[str,str]
+    age:dict[str,str]
+@dataclass
+class Function:
+    name:str
+    parameters:dict[str,str]
+    required:list[str] 
+@dataclass
+class Tools:
+    # clase para definir la estructura de las herramientas
+    ''' 
+        {
+                "type": "function",
+                "function": {
+                  "name": "UserDetail",
+                  "parameters": {
+                    "type": "object",
+                    "title": "UserDetail",
+                    "properties": {
+                      "name": {
+                        "title": "Name",
+                        "type": "string"
+                      },
+                      "age": {
+                        "title": "Age",
+                        "type": "integer"
+                      }
+                    },
+                    "required": [ "name", "age" ]
+                  }
+                }
+              }
+    '''
+    type:str
+    function:Function
+    tool_name:str
+    tool_description:str
+    tool_arguments:str
+    
+    def __post_init__(self):
+        # resolve tool_filename to an function for call
+        pass
+    
+    
+'''
+@dataclass
+class MotionsInfo:
+    _for='motions'
+    # incrementar un nivel respecto a un key
+    map_motionExpressions:dict[str,str] = {
+        
+    }
+    # se usa para un mapa de sentimiento:expresion
+    
+    key_events:list[str] = [
+        
+    ]# dependiendo de alguna palabra clave se cambiara de un modelo a otro
+    
+    
+    increment_intimacy_sentiments:list[str] = {
+        'love':4,
+        'amusement':2,
+        'desire':5,
+        'admiration':3,
+        'excitement':5,
+        'caring':5,
+        'joy':2,
+        'approval':2,
+        'gratitude':4        
+        }
+    decrement_intimacy_sentiments:list[str] = {
+        "anger":3,
+        "annoyance":2,
+        "grief":1,
+        "disapproval":5,
+        "disgust":4,
+        "disappointment":5
+    }
+'''
 @dataclass
 class PromptDocument:
     """ use this class for make new prompts telling who the cyberwaifu are """
+    
+    #_metha_info:ClassVar[dict[str,object]] = {
+    #    "embebed_models":[MotionsInfo]
+    #}
     context:str
     ia_prefix:str
     user_prefix:str
@@ -158,6 +244,8 @@ class PromptDocument:
     personality:str
     scenario:str = ""
     temp:float = 0.6
+    intimacy_level:int = 0
+    #motions:MotionsInfo = MotionsInfo() Not implemented yet
     def __post_init__(self):
         if len(self.context) == 0:
             raise NameError("PROMPT ERROR: Context unexisting")
@@ -172,7 +260,6 @@ class GenericPrompt:
     def __str__(self):
         return convertObject2JsonData(self)
   
-    
 
 @dataclass
 class ChatBotSettings:
@@ -184,7 +271,7 @@ class ChatBotSettings:
         > use summarization
     '''
     # class atributes
-    available_backends:ClassVar[list[str]] = ["gpt4all","transformers","llamacpp","debug","llama_debug"]
+    available_backends:ClassVar[list[str]] = ["gpt4all","transformers","llamacpp","debug","llama_debug",'test']
     available_vectorStorageBackends:ClassVar[list[str]] = ["Chromadb","HyperDB",""]
     prompt_paths:ClassVar[str] = "prompt_paths/"
     # object attributes
@@ -202,6 +289,7 @@ class ChatBotSettings:
     full_memories_document:str = join(prompt_paths,prompt_memories_document)
     use_vectorStoragedb:bool = False
     use_summarysation:bool = True
+    use_sentymental_analysis:bool = False
     max_sumarization_lengt:int = 100
     min_sumarization_lengt:int = 20
     model_path:str = r"model/"# model/calypso-3b-alpha-v2
@@ -217,6 +305,7 @@ class ChatBotSettings:
     load_in_8bit:bool = False
     hook_storage:int =  0# numerod e mensajes para activar el almacenamiento # pode defecto la mitad del buffer size ( se saca la mitad en el post init)
     vector_storage_configuration_file:str = "chroma_db.json" # for default uses chomadb
+    specialized_sentymental_model:str = "specialized_sentymental_model"
     # obly the backends with no _ at start will be converted to json data config
     
     def __post_init__(self):
@@ -479,7 +568,6 @@ class ChomaDBHandler(BaseHandler):
             chunk_response = self._collection.get(
                 ids=range_query
             )
-            
             
             return chunk_response
         return {}# diccionario vacio

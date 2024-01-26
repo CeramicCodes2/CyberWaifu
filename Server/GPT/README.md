@@ -17,6 +17,20 @@ Link    Model file size
 
 [EleutherAI/gpt-neox-20b · Hugging Face](https://huggingface.co/EleutherAI/gpt-neox-20b)    ～35GB!
 
+### models for sentymental analysis
+28 emotions
+```sh
+git lfs install
+git clone https://huggingface.co/joeddav/distilbert-base-uncased-go-emotions-student
+```
+
+or 
+6 emotions
+
+```sh
+https://huggingface.co/nateraw/bert-base-uncased-emotion
+```
+
 ### configure model
 
 ```shell
