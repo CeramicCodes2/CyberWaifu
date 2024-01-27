@@ -194,23 +194,15 @@ class Tools:
         # resolve tool_filename to an function for call
         pass
     
-    
-'''
-@dataclass
-class MotionsInfo:
-    _for='motions'
-    # incrementar un nivel respecto a un key
-    map_motionExpressions:dict[str,str] = {
-        
-    }
-    # se usa para un mapa de sentimiento:expresion
-    
-    key_events:list[str] = [
-        
-    ]# dependiendo de alguna palabra clave se cambiara de un modelo a otro
-    
-    
-    increment_intimacy_sentiments:list[str] = {
+
+ARGS_MOTIONS_DEFAULT = {
+    'map_feelingExpressions':{
+        'happy':'32'
+    },
+    'map_feelingModel':{
+        'ride':'ride'
+    },
+    'increment_intimacy_sentiments':{
         'love':4,
         'amusement':2,
         'desire':5,
@@ -220,8 +212,8 @@ class MotionsInfo:
         'joy':2,
         'approval':2,
         'gratitude':4        
-        }
-    decrement_intimacy_sentiments:list[str] = {
+        },
+    'decrement_intimacy_sentiments':{
         "anger":3,
         "annoyance":2,
         "grief":1,
@@ -229,28 +221,47 @@ class MotionsInfo:
         "disgust":4,
         "disappointment":5
     }
-'''
+}
+@dataclass
+class MotionsInfo:
+    _for='motions'
+    # incrementar un nivel respecto a un key
+    map_feelingExpressions:dict[str,str]
+    # se usa para un mapa de sentimiento:expresion sentimiento:Motion
+    
+    map_feelingModel:dict[str,str]
+    # dependiendo de alguna palabra clave se cambiara de un modelo a otro o desatara una expresion
+    # por que usar este enfoque y no utilizar simplemente herramientas ?
+    # por que este enfoque evitara que se realizen multiples llamadas al llm y ahorrara tiempo de reaccion
+    increment_intimacy_sentiments:dict[str,str]
+    decrement_intimacy_sentiments:dict[str,str]
+    default_model:str = 'goth'
+    default_expression:str = 'idle'
+    def __str__(self):
+        return convertObject2JsonData(self)
+
 @dataclass
 class PromptDocument:
     """ use this class for make new prompts telling who the cyberwaifu are """
     
-    #_metha_info:ClassVar[dict[str,object]] = {
-    #    "embebed_models":[MotionsInfo]
-    #}
+    _metha_info:ClassVar[dict[str,object]] = {
+        "embebed_models":[MotionsInfo]
+    }
     context:str
     ia_prefix:str
     user_prefix:str
     text_example:str|list[dict[str,str]]
     personality:str
+    motions:MotionsInfo|dict[str,str]# = MotionsInfo()# Not implemented yet
     scenario:str = ""
     temp:float = 0.6
     intimacy_level:int = 0
-    #motions:MotionsInfo = MotionsInfo() Not implemented yet
     def __post_init__(self):
         if len(self.context) == 0:
             raise NameError("PROMPT ERROR: Context unexisting")
     def __str__(self):
-        return convertObject2JsonData(self)
+        ddata = dict((x,y) if not(isinstance(y,MotionsInfo)) else (x,convert2Dict(y)) for x,y in vars(self).items() if not(x.startswith("_")))
+        return dumps(ddata,indent=4)
 
 @dataclass
 class GenericPrompt:
@@ -271,7 +282,7 @@ class ChatBotSettings:
         > use summarization
     '''
     # class atributes
-    available_backends:ClassVar[list[str]] = ["gpt4all","transformers","llamacpp","debug","llama_debug",'test']
+    available_backends:ClassVar[list[str]] = ["gpt4all","transformers","llamacpp","debug","llama_debug"]
     available_vectorStorageBackends:ClassVar[list[str]] = ["Chromadb","HyperDB",""]
     prompt_paths:ClassVar[str] = "prompt_paths/"
     # object attributes
@@ -305,7 +316,13 @@ class ChatBotSettings:
     load_in_8bit:bool = False
     hook_storage:int =  0# numerod e mensajes para activar el almacenamiento # pode defecto la mitad del buffer size ( se saca la mitad en el post init)
     vector_storage_configuration_file:str = "chroma_db.json" # for default uses chomadb
+    # specialized model for sentymental 
     specialized_sentymental_model:str = "specialized_sentymental_model"
+    processEveryIaMessageAfterInference:bool = True
+    # si procesara cada sentimiento de la ia y no esperara hasta que el hook de storage_hook 
+    # para procesar todos los sentimientos (util al usar betalive para que tenga reacciones choerentes)
+    use_specialized_model:bool = True
+    # si es verdadero entonces no se usara el llm cargado se usara el modelo especializado
     # obly the backends with no _ at start will be converted to json data config
     
     def __post_init__(self):

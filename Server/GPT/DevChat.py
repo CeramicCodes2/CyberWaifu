@@ -2,7 +2,9 @@
 #import torch
 from models import ModelLoader,ChatBotSettings,Settings,Google_trans,Baidu_trans,PromptDocument,join,Metadata,GenericPrompt
 from datetime import datetime
+from lemantizer import lemantize
 import logging
+
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -72,6 +74,8 @@ class Chat:
         # para asegurarse de solo injectar el prompt una vez
         self.generator:pipeline|Llama|None = None
         #self._database = None
+        self._expression = None
+        self._live2dmodel = None
         for message_pairs in message_history:
             message1, message2 = message_pairs
             self.display_messages.append([message1['content'], message2['content']])
@@ -190,8 +194,6 @@ class Chat:
                 self.evaluate = self.llama_evaluate
             case "gpt4all":
                 pass
-            case 'test':
-                self.functionCallingTesting()
                 
             case "debug":
                 self.generator =  lambda text: [{"generated_text":text}]
@@ -222,8 +224,6 @@ class Chat:
                 self.text_completation = lambda prompt,option: self.ugenerator(prompt=prompt,**self._summarizator_model_configs) if option else self.ugenerator(prompt=prompt,**self._sentymental_model_configs)
                 self.generator = lambda messages: chat_solve
                 self.evaluate = self.llama_evaluate
-            
-        
         self.resolve_backend = lambda pre_summary,use_llama,option: self.text_completation(prompt=pre_summary,option=option) if use_llama else self.generator(pre_summary)      
     def load_settings(self):
         with ModelLoader("bot_settings.json",ChatBotSettings) as model:
@@ -265,17 +265,78 @@ class Chat:
     def intimacyLevel(self):
         return self._prompt_document.intimacy_level
     @intimacyLevel.setter
-    def intimacyLevel(self,updateValue:int):
-        self._prompt_document.intimacy_level += updateValue
-
+    def intimacyLevel(self,updateValue:str):
+        if response:=self._prompt_document.motions.increment_intimacy_sentiments.get(updateValue,False) or self._prompt_document.motions.decrement_intimacy_sentiments.get(updateValue,False) * -1:
+            logging.info(f'updated the intimacy level: {response}')
+            # False ==0 por lo tanto podemos multiplicar por -1 y esto siempre retornara un valor entero
+            # MULTIPLICAMOS POR -1 LOS NEGATIVOS PARA INDICAR QUE SE RESTA Y NO SE SUMA
+            self._prompt_document.intimacy_level += response
+    @property
+    def expression(self):
+        ''' 
+        despues de extraer un dato se debe de llamar al deleter
+        esto es para que en la proxima consulta que realize el front no emita continuamente la expresion
         
-    def extractSpecialWords(self):
+        '''
+        del self.expression
+        return self._expression
+    @expression.setter
+    def expression(self,arg:str):
+        if arg:# si la expresion no es un false
+            self._expression = arg
+            return
+        del self.expression
+        # si la expresion a colocar es falso se setea la que es por defecto
+    @expression.deleter
+    def expression(self):
+        self._expression = self._prompt_document.motions.default_expression
+    @property
+    def live2dModel(self):
+        
+        return self._live2dmodel
+    @live2dModel.setter
+    def live2dModel(self,arg:str):
+        if arg:
+            self._live2dmodel = arg
+            return
+        # si es falso se estara con el mismo modelo por lo menos hasta que se asigne un modelo que si exista ( que no sea false)
+        
+    @live2dModel.deleter
+    def live2dModel(self):
+        self._live2dmodel = self._prompt_document.motions.default_model
+        
+    def extractSpecialWords(self,ia_output:str) ->dict[str,str]:
         ''' 
         this function will be used for extract relevant words from a response of an ia
         for proposes of increment the intimacy level
+        and it can be used for set the expression or motion
+        the process will lemantize the oration so its needed put the special words in a present time
         '''
-        
-        pass
+        logging.info('INGRESING IA OTUPUT')
+        logging.info(ia_output)
+        lmWords = lemantize(ia_output,returnList=True)
+
+        for word in lmWords:
+            '''
+            if response:=self._prompt_document.motions.increment_intimacy_sentiments.get(word,False) or self._prompt_document.motions.decrement_intimacy_sentiments.get(word,False) * -1:
+                self.intimacyLevel = response
+                logging.info(f'updated the intimacy level: {response}')
+                # False ==0 por lo tanto podemos multiplicar por -1 y esto siempre retornara un valor entero
+                # MULTIPLICAMOS POR -1 LOS NEGATIVOS PARA INDICAR QUE SE RESTA Y NO SE SUMA'''
+            match word:
+                case [word] if word in self._prompt_document.motions.map_feelingExpressions:
+                    self._prompt_document.motions.map_feelingExpressions[word]
+                    logging.info(f'emiting expresion: {word}')
+                case [word] if word in self._prompt_document.motions.map_feelingModel:
+                    self._prompt_document.motions.map_feelingModel[word]
+                    logging.info(f'emiting motion:  {word}')
+                case [word] if not(word in self._prompt_document.motions.map_feelingExpressions):
+                    self.expression = False
+                    logging.info(f'no emiting expresion')
+                case [word] if not(word in self._prompt_document.motions.map_feelingModel):
+                    logging.info(f'no emiting motion')
+                    self.live2dModel = False
+            
     def updatePromptValues(self):
         ''' metodo usado para actualizar valores como el nivel de intimidad '''
         with open(self._chatSettings.prompt_document,'w') as wd:
@@ -358,27 +419,55 @@ class Chat:
         self.display_messages.append([message, response])
         return self.display_messages
         #return self.display_messages
-    def transformerSpecializedSentymentalAnalysis(self,conversation):
+
+    def processCorpusSpecialized(self,user:dict[str,str],ia:dict[str,str],conv_analysis,onlyProcessIA=False):
+        #print(self.pairRegister2Block(x,y))
+
+        if user['content'] == None  or len(user["methadata"]["sentimental_conversation"]) != 0:
+           return False# si por algna razon no se encuentra vacio hara un continue
+        if ia['content'] == None or len(ia["methadata"]["sentimental_conversation"]) != 0:
+            return False  
+        if onlyProcessIA:
+            ia_res = conv_analysis(ia['content'])
+            self.intimacyLevel = ia_res
+            ia["methadata"]["sentimental_conversation"] = ia_res[0]['label']
+            return True
+        user_res = conv_analysis(user['content'])
+        ia_res = conv_analysis(ia['content'])
+        logging.info('sentimental analysis status ')
+        logging.warn(user_res)
+        logging.warn(ia_res)
+        self.intimacyLevel = ia_res
+        user["methadata"]["sentimental_conversation"] = user_res[0]['label']
+        ia["methadata"]["sentimental_conversation"] = ia_res[0]['label']
+    def transformerSpecializedSentymentalAnalysis(self,conversation:list[tuple[dict[str,str]]] | tuple[dict[str,str]],onlyProcessIA=False):
         ''' carga un modelo especializado para clasificacion de texto '''
-        from transformers import pipeline
-        conv_analysis =  pipeline(f'./model/{self._chatSettings.specialized_sentymental_model}')
+        if (self._chatSettings.use_specialized_model and self._chatSettings.use_sentymental_analysis) and not(globals().get('pipeline',False)):
+            from transformers import pipeline
+        conv_analysis =  pipeline(
+            task="text-classification",
+            model=f'./model/{self._chatSettings.specialized_sentymental_model}'
+            
+            )
+        # ahora tambien se podra pasar solo un registro ({""},{})
+        if isinstance(conversation,tuple):
+            user,ia = conversation
+            self.processCorpusSpecialized(user=user,ia=ia,onlyProcessIA=onlyProcessIA,conv_analysis=conv_analysis)
+            logging.info('PROCESANDO UN UNICO REGISTRO: VALORES PROCESADOS:')
+            logging.info(user)
+            logging.info(ia)
+            return
         for x,y in conversation:
-            #print(self.pairRegister2Block(x,y))
-            user = conv_analysis(x['content'])
-            ia = conv_analysis(y['content'])
-            conversation["methadata"]["sentimental_conversation"] = user
-            conversation["methadata"]["sentimental_conversation"] = ia
+            trackback = self.processCorpusSpecialized(user=x,ia=y,onlyProcessIA=onlyProcessIA,conv_analysis=conv_analysis)
+            if not(trackback):
+                continue
     def sentimental_analysis(self,conversation):
         # using transformers
         if not(self._chatSettings.use_sentymental_analysis):
             return 0
-        if not(hasattr(self,'conv_analysis')):
-            # asumimos que no se usa el backend transformers
-            # al activar el uso de sentimientos tendremos que cargar transformers con un modelo para esto
-            
-            return 0
-        if self._chatSettings.backend != 'transformers':
-           return self.transformerSpecializedSentymentalAnalysis(conversation) 
+        if self._chatSettings.backend != 'transformers' or self._chatSettings.use_specialized_model: 
+            # si no es el bk transformers o si se indica que se use un modelo especifico
+            return self.transformerSpecializedSentymentalAnalysis(conversation)
         for x,y in conversation:
             #print(self.pairRegister2Block(x,y))
             lysis = self.conv_analysis(self.pairRegister2Block(x,y))
@@ -392,7 +481,7 @@ class Chat:
         response = self.evaluate(message)
         if self.use_llama:
             response = response["choices"][0]["message"]["content"]
-        logging.error(response)
+        self.extractSpecialWords(response)
         self.message_history.append(
             (
                 {"role": self.user_alias, "content": message},
@@ -410,7 +499,12 @@ class Chat:
         )# usar el metodo copy demandaria mayor gasto de recursos
         #self.message_history.copy()
         # append the new message
-        
+        if self._chatSettings.use_sentymental_analysis and self._chatSettings.processEveryIaMessageAfterInference:
+            logging.info('DEBUGGING INGO')
+            logging.error(self.storage_hook[-1])
+            
+            self.sentimental_analysis(self.storage_hook[-1])# solo procesamos el ultimo mensaje
+            
         display = self.reset_message_history(message,response)
         return display
     def mapReduceSummarizator(self):

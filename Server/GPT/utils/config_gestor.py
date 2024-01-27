@@ -8,6 +8,12 @@ import click
 
 from os.path import isfile,isdir,join
 GLOBAL_HANDLER = None
+### MODEL CREATOR TOOL ###
+@click.command()
+
+def model():
+    pass
+
 @click.command()
 @click.argument('document')
 def hyperDbRaw2Database(document:str):

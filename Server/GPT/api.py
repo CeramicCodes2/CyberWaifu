@@ -37,10 +37,10 @@ VERBS = {
 @app.route("/api/models")# get models
 def getModels():
     return jsonify(listdir('./model'))# get all the models
-@app.route("/api/model/<model>")# set the model
+@app.route("/api/model/<model>")# set the llm model
 def setModel(model):
     if(not(model in listdir('./model'))):
-        #abort(404);
+        #abort(404); # llm model
         return jsonify({"Error":"Unikown Model!"})
     settings = ChatInstance.loadBotSettings()
     settings.model_path = model
@@ -63,10 +63,16 @@ def setIntimacy(intimacy:int):
 def getLive2dModel():
     # indicara que modelo de live2d cargar
     # dependiendo del estado de animo de la waifu
-    return 'goth'
+    # TODO: por cada entrada de texo generado el front debera de hacer una consulta a esta ruta de la api 
+    return ChatInstance.live2dModel
 @app.route('/api/motions')
 def getCurrentMotion():
     return 'happy'
+@app.route('/api/expression')
+def getExpression():
+    return ChatInstance.expression
 @app.route('/api/touchZone/<zone>')
 def notifyTouchZone(zone:str):
+    # se insertara un prompt para notificar que se toco una parte del cuerpo
+    
     return VERBS['ok']

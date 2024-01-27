@@ -1,5 +1,5 @@
 {
-    "backend": "test",
+    "backend": "llamacpp",
     "vectorStorageBackend": "HyperDB",
     "chat_buffer_size": 20,
     "prompt_document": "ranni.json",
@@ -10,7 +10,7 @@
     "full_summarization_document": "prompt_paths/summarization.json",
     "use_vectorStoragedb": true,
     "use_summarysation": true,
-    "use_sentymental_analysis":false,
+    "use_sentymental_analysis":true,
     "max_sumarization_lengt": 100,
     "min_sumarization_lengt": 20,
     "chat_format":"snoozy_dev",
@@ -25,5 +25,7 @@
     "load_in_8bit": false,
     "hook_storage": 2,
     "vector_storage_configuration_file": "chroma_db.json",
-    "specialized_sentymental_model":"distilbert-base-uncased-go-emotions-student"
+    "specialized_sentymental_model":"distilbert-base-uncased-go-emotions-student",
+    "processEveryIaMessageAfterInference":true,
+    "use_specialized_model":true
 }
