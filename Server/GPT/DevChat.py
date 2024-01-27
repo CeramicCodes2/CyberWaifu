@@ -282,10 +282,11 @@ class Chat:
             "role":'system','content':item['prompt'].format(ia_prefix=self._prompt_document.ia_prefix,user_prefix=self._prompt_document.user_prefix,emotion=item['emotion'])
         },
         {
-             "role":"system",'content':item['actionsPrompt'].format(ia_prefix=self._prompt_document.ia_prefix,user_prefix=self._prompt_document.user_prefix) + '\n'.join(item['actions'])
+             "role":"system",'content':item['actionsPrompt'].format(ia_prefix=self._prompt_document.ia_prefix,user_prefix=self._prompt_document.user_prefix) + '\n '.join(item['actions'])
         }
         ))
     def quicksort(self,z:list[int]):
+        # https://www.freecodecamp.org/espanol/news/algoritmos-de-ordenacion-explicados-con-ejemplos-en-javascript-python-java-y-c/
         if(len(z)>1):        
             piv=int(len(z)/2)
             val=z[piv]
