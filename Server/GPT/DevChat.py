@@ -1,6 +1,6 @@
 #import gradio as gr
 #import torch
-from models import ModelLoader,ChatBotSettings,Settings,Google_trans,Baidu_trans,PromptDocument,join,Metadata,GenericPrompt
+from models import ModelLoader,ChatBotSettings,Settings,Google_trans,Baidu_trans,PromptDocument,join,Metadata,GenericPrompt,IntimacyData,levelPrompt
 from datetime import datetime
 from lemantizer import lemantize
 import logging
@@ -70,12 +70,21 @@ class Chat:
         self._prompt = ''
         self._memories_message = ''
         self.use_llama = False
+        
         self._chat_injection_Prompt = False# use cuando ya se haya inyectado el prompt en el caso de usar create_chat
         # para asegurarse de solo injectar el prompt una vez
         self.generator:pipeline|Llama|None = None
         #self._database = None
         self._expression = None
         self._live2dmodel = None
+        # intimacy levels
+        
+        self.lvls_ordered:list[int] = None# lista de los niveles
+        self._current_level:int = None
+        self._prox_level:int = None
+        self._level_index:int =  0 
+        # evitara re uzar el algoritmo quickshort multiples veces 
+        
         for message_pairs in message_history:
             message1, message2 = message_pairs
             self.display_messages.append([message1['content'], message2['content']])
@@ -205,7 +214,7 @@ class Chat:
                             "model": "./models/7B/llama-model.gguf",
                             "choices": [
                               {
-                                "text": "Q: Name the planets in the solar system? A: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune and Pluto.",
+                                "text": "hmm ...",
                                 "index": 0,
                                 "logprobs": None,
                                 "finish_reason": "stop"
@@ -217,7 +226,7 @@ class Chat:
                               "total_tokens": 42
                             }
                 }
-                chat_solve = {'id': 'chatcmpl-dfd730c5-e868-43b0-bc89-f76e3a1848fa', 'object': 'chat.completion', 'created': 1705535043, 'model': 'model/mistral-pygmalion-7b.Q4_K_M.gguf', 'choices': [{'index': 0, 'message': {'role': 'assistant', 'content': ''}, 'finish_reason': 'stop'}], 'usage': {'prompt_tokens': 421, 'completion_tokens': 0, 'total_tokens': 421}}
+                chat_solve = {'id': 'chatcmpl-dfd730c5-e868-43b0-bc89-f76e3a1848fa', 'object': 'chat.completion', 'created': 1705535043, 'model': 'model/mistral-pygmalion-7b.Q4_K_M.gguf', 'choices': [{'index': 0, 'message': {'role': 'assistant', 'content': 'i love u too'}, 'finish_reason': 'stop'}], 'usage': {'prompt_tokens': 421, 'completion_tokens': 0, 'total_tokens': 421}}
                 
                 self.use_llama = True
                 self.ugenerator = lambda prompt,**kwargs: solve
@@ -245,6 +254,11 @@ class Chat:
             self._prompt_summarizator = ml.prompt
         with ModelLoader(configuration_name=self._chatSettings.full_memories_document,ModelClass=GenericPrompt,no_join_config_file_path=True) as ml:
             self._prompt_memories = ml.prompt
+            # resolvemos IntimacyData 
+            #self._prompt_document.intimacy:IntimacyData = IntimacyData(**self._prompt_document.intimacy)
+            #self._oldIntimacy:IntimacyData = self._prompt_document.intimacy
+            #self._prompt_document.intimacy.dict2Level()
+            # volvemos de diccionario a nivel
             
         # INIT DATABASE
         if not(self._chatSettings.use_vectorStoragedb):
@@ -261,6 +275,106 @@ class Chat:
             
         self._database = handler
         self._database.handler()
+    
+    def makeLevelPrompt(self,item:dict[str,str]|levelPrompt):
+        self.message_history.append(
+        ({
+            "role":'system','content':item['prompt'].format(ia_prefix=self._prompt_document.ia_prefix,user_prefix=self._prompt_document.user_prefix,emotion=item['emotion'])
+        },
+        {
+             "role":"system",'content':item['actionsPrompt'].format(ia_prefix=self._prompt_document.ia_prefix,user_prefix=self._prompt_document.user_prefix) + '\n'.join(item['actions'])
+        }
+        ))
+    def quicksort(self,z:list[int]):
+        if(len(z)>1):        
+            piv=int(len(z)/2)
+            val=z[piv]
+            lft=[i for i in z if i<val]
+            mid=[i for i in z if i==val]
+            rgt=[i for i in z if i>val]
+
+            res=self.quicksort(lft)+mid+self.quicksort(rgt)
+            return res
+        else:
+            return z
+    def evalLevelPosition(self,position:int,lvls_ordered:list[int]):
+        
+        if position != 0:
+            self._current_level = lvls_ordered[position -1]# nivel que se ha desbloqueado
+        else:
+            self._current_level = min(lvls_ordered) if min(lvls_ordered) != lvls_ordered[position] else lvls_ordered[position+1]# esto deberia retornar el null_level
+        if position+1 <= (len(lvls_ordered)-1) and position <= (len(lvls_ordered) -1):
+            # restamos 1 a len para obtener los indices 
+            self._prox_level = lvls_ordered[position +1]
+            return 
+        self._prox_level = None # no hay proximo nivel
+        #
+        #    self._prox_level =  
+        
+        
+    def intimacyEvent(self,response:int):
+        # esta funcion se encargara de administrar el nivel de intimidad
+        # asi mismo se disparara dependiendo del nivel
+        # self._prompt_document.intimacy
+        #self._prompt_document.intimacy.
+        
+        if isinstance(self.lvls_ordered,list):
+            # si existe el atributo es una lista
+            # pensamos que ya se utilizo quickshort
+            if self._prox_level:
+                # si aun no se ha llegado hasta el nivel final
+                if self._prompt_document.intimacy_level >= self._prox_level:#['level_number']:
+                    
+                    # si ya se alcanzo y si despues de este existe otro nivel
+                    
+                    self.evalLevelPosition(position=self._level_index+1,lvls_ordered=self.lvls_ordered)
+                    self._level_index += 1# incrementamos el indice
+                    logging.info(f'current level: {self.dctNum[self._current_level]}')
+                    
+                    self.makeLevelPrompt(item=getattr(self._prompt_document.intimacy,self.dctNum[self._current_level]))
+                    
+                    logging.info('inyecting level prompt')
+                    logging.info(self.message_history)
+                    
+                    
+                    # !si no se cumple la condicion es que estamos en el ultimo nivel
+            return
+        # si ya no hay niveles retorna None
+            
+        get_levels = lambda: dict( (level_key,level_item) for level_key,level_item in vars(self._prompt_document.intimacy).items() if not(isinstance(level_item,int)))
+        
+        lvls = get_levels()
+        # TODO:aplicar algoritmo de ordenamiento para indicar en que nivel estamos
+        
+        # obtenemos los niveless ( el numero para alcanzarlo)
+        lvls_number_key:list[tuple[int,str]] = [(lvls[level_key]['level_number'],level_key) for level_key in lvls.keys()]
+        self.dctNum = dict(lvls_number_key)# diccionario para evitar buscar un elemento con una busqueda lineal
+        # ahora insertaremos nuestro valor de nivel de intimidad actual para determinar cual es el limite menor ( en que nivel estamos)
+        lvls_number:int = [ level[0] for level in lvls_number_key ]# solo los numeros
+        lvls_number.insert(0,self._prompt_document.intimacy_level)
+        # a;adimos al inicio
+        lvls_ordered:list[int] = self.quicksort(lvls_number)# ordenamos la lista
+        
+        position = lvls_ordered.index(self._prompt_document.intimacy_level)
+        self._level_index:int = position# obtenemos la posicion (podriamos tambien usar algun algoritmo como busqueda binaria pero index esta bien)
+        # TODO: index utiliza la busqueda lineal es posible eficientar con busqueda binaria
+        # rescatamos la posicion del elemento
+        self.evalLevelPosition(position,lvls_ordered)
+        #print(self.dctNum ,self._current_level)
+        logging.info(f'current level: {self.dctNum[self._current_level]}')
+        self.makeLevelPrompt(item=getattr(self._prompt_document.intimacy,self.dctNum[self._current_level]))# crea e inyecta el prompt en el historial de mensajes
+        # guardamos el indice del nivel actual para guardar la lista de niveles ordenados
+        # y asi evitar reutilizar quickshort (por que ? por que ya tenemos el proximo nivel tambien y la posicion actual)
+        # ya no es necesario insertar el elemento y reordenar una y otra vez
+        self.lvls_ordered:list[int] = lvls_ordered
+        # guardamos con todo y nivel de intimidad anterior por que ? para que no nos mueva los indices por eliminar un valor
+        logging.info('inyecting level prompt')
+        logging.info(self.message_history)
+        
+        
+    
+            
+        
     @property
     def intimacyLevel(self):
         return self._prompt_document.intimacy_level
@@ -270,6 +384,8 @@ class Chat:
             logging.info(f'updated the intimacy level: {response}')
             # False ==0 por lo tanto podemos multiplicar por -1 y esto siempre retornara un valor entero
             # MULTIPLICAMOS POR -1 LOS NEGATIVOS PARA INDICAR QUE SE RESTA Y NO SE SUMA
+            self.intimacyEvent(response)
+            
             self._prompt_document.intimacy_level += response
     @property
     def expression(self):
@@ -429,7 +545,7 @@ class Chat:
             return False  
         if onlyProcessIA:
             ia_res = conv_analysis(ia['content'])
-            self.intimacyLevel = ia_res
+            self.intimacyLevel = ia_res[0]['label']
             ia["methadata"]["sentimental_conversation"] = ia_res[0]['label']
             return True
         user_res = conv_analysis(user['content'])
@@ -437,7 +553,7 @@ class Chat:
         logging.info('sentimental analysis status ')
         logging.warn(user_res)
         logging.warn(ia_res)
-        self.intimacyLevel = ia_res
+        self.intimacyLevel = ia_res[0]['label']
         user["methadata"]["sentimental_conversation"] = user_res[0]['label']
         ia["methadata"]["sentimental_conversation"] = ia_res[0]['label']
     def transformerSpecializedSentymentalAnalysis(self,conversation:list[tuple[dict[str,str]]] | tuple[dict[str,str]],onlyProcessIA=False):

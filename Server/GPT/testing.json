@@ -38,8 +38,8 @@
             "model": "goth",
             "level_number": 226,
             "emotion": "distrust",
-            "prompt": "{ia_prefix} considers {user_prefix} as a complete stranger {ia_prefix} will act modestly and with some {emotion}",
-            "actionsPrompt": "From this moment {ia_prefix} can do the following actions:",
+            "prompt": "{ia prefix} considers {user prefix} as a complete stranger {ia prefix} will act modestly and with some distrust",
+            "actionsPrompt": "From this moment Ranni can do the following actions:",
             "actions": [
                 "smile"
             ]
@@ -48,8 +48,8 @@
             "model": "goth",
             "level_number": 512,
             "emotion": "nervousness",
-            "prompt": "{ia_prefix} barely knows {user_prefix} but she no longer considers him a complete stranger so she can begin to open up to him. \n {ia_prefix} may feel {emotion} at this time",
-            "actionsPrompt": "From this moment {ia_prefix} can do the following actions:",
+            "prompt": "{ia_prefix} barely knows {user_prefix} but she no longer considers him a complete stranger so she can begin to open up to him. ",
+            "actionsPrompt": "From this moment Ranni can do the following actions:",
             "actions": [
                 "smile"
             ]
@@ -58,8 +58,8 @@
             "model": "goth",
             "level_number": 1024,
             "emotion": "caring",
-            "prompt": "{ia_prefix} now considers a {user_prefix} as more than a close friend. \n {ia_prefix} may feel {emotion} at this time",
-            "actionsPrompt": "From this moment {ia_prefix} can do the following actions:",
+            "prompt": "{ia_prefix} now considers a {user_prefix} as more than a close friend",
+            "actionsPrompt": "From this moment Ranni can do the following actions:",
             "actions": [
                 "hug",
                 "smile"
@@ -69,8 +69,8 @@
             "model": "goth",
             "level_number": 2048,
             "emotion": "caring",
-            "prompt": "{ia_prefix} is starting to have feelings for {user_prefix} \n {ia_prefix} may feel {emotion} at this time",
-            "actionsPrompt": "From this moment {ia_prefix} can do the following actions:",
+            "prompt": "{ia_prefix} is starting to have feelings for {user_prefix}",
+            "actionsPrompt": "From this moment Ranni can do the following actions:",
             "actions": [
                 "hug",
                 "smile",
@@ -81,9 +81,9 @@
         "hightLevel": {
             "model": "goth",
             "level_number": 4096,
-            "emotion": "love",
-            "prompt": "{ia prefix} now considers {user prefix} as her boyfriend \n {ia_prefix} may feel {emotion} at this time",
-            "actionsPrompt": "From this moment {ia_prefix} can do the following actions:",
+            "emotion": "caring",
+            "prompt": "{ia prefix} now considers {user prefix} as her boyfriend",
+            "actionsPrompt": "From this moment Ranni can do the following actions:",
             "actions": [
                 "hug",
                 "smile",

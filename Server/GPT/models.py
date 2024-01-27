@@ -240,12 +240,142 @@ class MotionsInfo:
     def __str__(self):
         return convertObject2JsonData(self)
 
+# MODELS AND EVENTS DESCRIPTION FOR INJECT TO THE PROMPT
+
+@dataclass
+class ModelDescription:
+    # esta clase se usara para indicarle que hace cada modelo de live2d
+    model_name:str# nombre del modelo ( no tiene nada que ver con el nombre del modelo que se usa en live2d para su ejecucion ) aqui debe ser un nombre descriptivo
+    description:str
+    _model_live2dId:str# id para ubicar el modelo y requerir su ejecucion al front
+    expressions_description:dict[str,str]# = {"put an orgasm face":'expression01.exp'}
+    model_motions_description:dict[str,str] #= {'hug':'hug the {user_prefix} face'}
+    emotions_associed:list[str]# = ['love','desire']
+    promptModel:str = ''# se arma en el post init
+    def __post_init__(self):
+        self.promptModel = f'{self.model_name} \n {self.description} \n The following are expressions that you can make:'
+        self.promptModel += "\n".join([expression for expression in self.expressions_description.keys()])
+        # expressions model
+        self.promptModel += '\n and these are some moves you can do: '
+        self.promptModel += "\n".join([motion for motion in self.model_motions_description.keys()])
+    def __str__(self):
+        return {self.model_name:{'description':self.description,'model_motions_description':self.model_motions_description}}
+    
+@dataclass
+class EventPrompt:
+    name:str# nombre del evento (ejemplo salir de cita)
+    description:str# descripccion del evento ( ejemplo ir de cita con user_prefix)
+    models:list[ModelDescription]
+    # lista de modelos con descripcion y eso
+    promptEvent:str = '*{ia_prefix} is in a pose {pose_description} *'
+@dataclass
+class levelPrompt:
+    model:str
+    level_number:int
+    emotion:str
+    prompt:str
+    actionsPrompt:str
+    actions:list[str]
+    # events:dict[str,str]|EventPrompt los eventos seran disparados por el sentymental processor funcino
+    # para ello se evaluara si se tiene el suficiente nivel de intimidad
+    def toDict(self):
+        return convert2Dict(self)
+    
+
+BASIC_LEVEL = {
+    'nullLevel':levelPrompt(
+        model='goth',
+        level_number=226,
+        emotion='distrust',
+        prompt='{ia_prefix} considers {user_prefix} as a complete stranger {ia_prefix} will act modestly and with some distrust',
+        actionsPrompt="From this moment {ia_prefix} can do the following actions:",
+        actions=["smile"]
+    ),
+    'lowLevel':levelPrompt(
+        model='goth',
+        level_number=512,
+        emotion='nervousness',
+        prompt='{ia_prefix} barely knows {user_prefix} but she no longer considers him a complete stranger so she can begin to open up to him. ',
+        actionsPrompt="From this moment {ia_prefix} can do the following actions:",
+        actions=["smile"]
+    ),
+    'middleLevel':levelPrompt(
+        model='goth',
+        level_number=1024,
+        emotion='caring',
+        prompt='{ia_prefix} now considers a {user_prefix} as more than a close friend',
+        actionsPrompt="From this moment {ia_prefix} can do the following actions:",
+        actions=[
+            "hug",
+            "smile"
+        ]
+    ),
+    'middleHightLevel':levelPrompt(
+        model='goth',
+        level_number=2048,
+        emotion='caring',
+        prompt='{ia_prefix} is starting to have feelings for {user_prefix}',
+        actionsPrompt="From this moment {ia_prefix} can do the following actions:",
+        actions=[
+            "hug",
+            "smile",
+            'kiss',
+            'blush',
+            
+        ]
+    ),
+    'hightLevel':levelPrompt(
+        model='goth',
+        level_number=4096,
+        emotion='caring',
+        prompt='{ia_prefix} now considers {user_prefix} as her boyfriend',
+        actionsPrompt="From this moment {ia_prefix} can do the following actions:",
+        actions=[
+            "hug",
+            "smile",
+            'kiss',
+            'sex',
+            'blush',
+            
+        ]
+    )
+    
+    
+}
+@dataclass
+class IntimacyData:
+    _for='intimacy'
+    # levels of intimacy 
+    nullLevel:levelPrompt|dict[str,str]
+    lowLevel:levelPrompt|dict[str,str]
+    # -----middle level-----
+    middleLevel:levelPrompt|dict[str,str]
+    middleHightLevel:levelPrompt|dict[str,str]
+    # ---hight level---
+    hightLevel:levelPrompt|dict[str,str]
+    max_intimacyLevel:int = 4096
+    def __post_init__(self):
+        levels = [setattr(self,argument,getattr(self,argument).toDict()) if isinstance(getattr(self,argument),levelPrompt) else argument for argument in vars(self) if not(argument.startswith("_")) and (isinstance(getattr(self,argument),levelPrompt) or isinstance(getattr(self,argument),dict))]
+        # convert the levels 2 a dictionary for serialization using json data
+    def toDict(self):
+        return convert2Dict(self)
+    def get_levels(self):
+        return [ level if isinstance(getattr(self,level),dict) else None for level in vars(self) if not(level.startswith("_")) ]
+    def dict2Level(self):
+        self.get_levels()
+        [ setattr(self,level,levelPrompt(**getattr(self,level))) for level in levels if level != None ]
+        print(type(self.hightLevel))
+        # setattr(self,level,levelPrompt(**getattr(self,level)))
+        # ahora convierte de diccionario a levelPrompt
+        
+    
+    
 @dataclass
 class PromptDocument:
     """ use this class for make new prompts telling who the cyberwaifu are """
     
     _metha_info:ClassVar[dict[str,object]] = {
-        "embebed_models":[MotionsInfo]
+        "embebed_models":[MotionsInfo,IntimacyData]
     }
     context:str
     ia_prefix:str
@@ -253,6 +383,7 @@ class PromptDocument:
     text_example:str|list[dict[str,str]]
     personality:str
     motions:MotionsInfo|dict[str,str]# = MotionsInfo()# Not implemented yet
+    intimacy:dict[str,str]|IntimacyData
     scenario:str = ""
     temp:float = 0.6
     intimacy_level:int = 0
@@ -260,6 +391,8 @@ class PromptDocument:
         if len(self.context) == 0:
             raise NameError("PROMPT ERROR: Context unexisting")
     def __str__(self):
+        if isinstance(self.intimacy,IntimacyData):
+            self.intimacy = self.intimacy.toDict()# convertimos a diccionario
         ddata = dict((x,y) if not(isinstance(y,MotionsInfo)) else (x,convert2Dict(y)) for x,y in vars(self).items() if not(x.startswith("_")))
         return dumps(ddata,indent=4)
 
