@@ -104,9 +104,21 @@ class Waifu{
         )
         // moc.json file
     }
+
+    async httpVerb(api_path,method){
+        // emite una expresion consultando la api
+        let response = await fetch(
+            api_path,{method:method}
+        );
+        return await response.json();
+
+    }
+    
+
     onInteraction(){
         this.model.expression('goth_5');
         this.mapAreaAndMotion();
+
         //this.mapAreaAndMotion();
         //this.onClickArea('Breasts','Breasts#1');
         //this.onClickArea('Head','Head');
@@ -132,7 +144,7 @@ function UI_APP(canvasId){
       });// create the pixi app
 }
 
- function main(model_path){
+async function main(model_path){
     const app = createApp('canvas');
     //const ui = UI_APP('ui');
     let WaifuArea = new PIXI.Container();

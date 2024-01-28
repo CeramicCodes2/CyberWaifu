@@ -16,6 +16,7 @@ soundfile = "~=0.11.0"
 sounddevice = "~=0.4.5"
 hyperdb-python = "*"
 nltk = "*"
+markupsafe = "*"
 
 [dev-packages]
 

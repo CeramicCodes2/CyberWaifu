@@ -55,6 +55,25 @@ Continuing from the previous conversation, write what {character_name} says to {
 #from llama_cpp.llama_chat_format import register_chat_format,ChatFormatterResponse,_get_system_message,_map_roles,_format_chatml
 def cute_print(name,age):
     print(name,age)
+
+from models import ModelDescription,EventPrompt
+class Tool:
+    def __init__(self,tool_path:str):
+        self.testTool = [
+            EventPrompt(
+                name='date',
+                description='go to date with {user_prefix}',
+                models=[
+                    #ModelDescription(
+                    #    model_name='fella',
+                    #    
+                    #)
+                ],
+                promptEvent='{ia_prefix} and {user_prefix} go to a date'
+            )
+        ]
+    def createPrompt(self):
+        pass
 class Chat:
     def __init__(self, message_history=[],inject_chat_prompt=True):
         self.load_settings()
@@ -191,7 +210,6 @@ class Chat:
         self.text_completation = lambda prompt,option: self.ugenerator(prompt=prompt,**self._summarizator_model_configs) if option else self.ugenerator(prompt=prompt,**self._sentymental_model_configs)
         # True -> summarizar False -> sentimental configs
         #self.cg = self.ugenerator.create_chat_completion(messages,temperature=self._chatSettings.temperature,top_p=self._chatSettings.top_p,top_k=self._chatSettings.top_k)
-        
         self.generator = lambda messages: self.ugenerator.create_chat_completion(messages,temperature=self._chatSettings.temperature,top_p=self._chatSettings.top_p,top_k=self._chatSettings.top_k)
     def loadModel(self):
         match self._chatSettings.backend:
@@ -554,7 +572,10 @@ class Chat:
         self.display_messages.append([message, response])
         return self.display_messages
         #return self.display_messages
-
+        
+    def searchExpression(self,ia_res):
+        if self._prompt_document.motions.map_feelingExpressions.get(ia_res[0]['label'],False):
+            self.expression = ia_res[0]['label']# tambien buscamos si forma parte la lista de mapeo de emociones
     def processCorpusSpecialized(self,user:dict[str,str],ia:dict[str,str],conv_analysis,onlyProcessIA=False):
         #print(self.pairRegister2Block(x,y))
 
@@ -565,6 +586,7 @@ class Chat:
         if onlyProcessIA:
             ia_res = conv_analysis(ia['content'])
             self.intimacyLevel = ia_res[0]['label']
+            self.searchExpression(ia_res)
             ia["methadata"]["sentimental_conversation"] = ia_res[0]['label']
             return True
         user_res = conv_analysis(user['content'])
@@ -572,6 +594,7 @@ class Chat:
         logging.info('sentimental analysis status ')
         logging.warn(user_res)
         logging.warn(ia_res)
+        self.searchExpression(ia_res)
         self.intimacyLevel = ia_res[0]['label']
         user["methadata"]["sentimental_conversation"] = user_res[0]['label']
         ia["methadata"]["sentimental_conversation"] = ia_res[0]['label']
@@ -644,6 +667,11 @@ class Chat:
         return display
     def mapReduceSummarizator(self):
         ''' not implemented yet'''
+        pass
+    def tool_selector(self):
+        # para utilizar herramientas basadas en model.EventPrompt
+        # self.ugenerator(prompt=,)
+        
         pass
     def summarizator(self,use_llama:bool):
         ''' stuff summarization requieres an llm https://python.langchain.com/docs/use_cases/summarization'''
@@ -740,7 +768,6 @@ class Chat:
         if message:
             
             main_dct.extend(message)
-            #print(main_dct)
             # solo se a;ade si no es None
         main_dct.append({"role":"system","content":sysHist})
         main_dct.extend(self.pair2tuple(message_history))
@@ -750,9 +777,6 @@ class Chat:
         logging.info('messages system dict')
         logging.info(main_dct)
         self.get_prompt = main_dct
-        #print(main_dct)
-        # self._chat_injection_Prompt = True
-        #logging.error(main_dct)
         return self.generator(
             messages=main_dct
         )
@@ -866,14 +890,33 @@ class Chat:
         self.get_prompt = prompt
         return prompt
     def run(self,message):
-            print(self.update_conversation(message=message))
-            #self.reset_message_history()
+        rsp = self.update_conversation(message=message)
+        #print(rsp)
+        return rsp
+        #self.reset_message_history()
 
 class ChatPygmalionEmbebed:
     ''' embebed version of  pygmalion for low resources ''' 
     def __init__(self, message_history=[],inject_chat_prompt=True):
         super().__init__(message_history,inject_chat_prompt)
 
+def commands(chat_instance:Chat,id_tool:str):
+    match id_tool:
+        case 'exit':
+            exit()
+        case 'get_vdb':
+            return chat_instance.databasec.collection.peek()
+        case 'get_timer_vs':
+            return str(len(chat_instance.message_history)%chat_instance._chatSettings.hook_storage)
+        case 'get_history':
+            # ('CURRENT HISTORY'.center(50,'#'))
+            return str(chat_instance.message_history)
+        case 'get_prompt':
+            # print('CURRENT PROMPT'.center(50,"#"))
+            return str(chat_instance.get_prompt)
+        case 'help':
+            return ('\n'.join(["get_vdb","get_timer_vs","get_history","get_prompt"]))
+    
 if __name__ == "__main__":#
     chat_instance = Chat(message_history=[])
     while True:
