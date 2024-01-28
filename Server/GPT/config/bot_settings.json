@@ -1,5 +1,5 @@
 {
-    "backend": "llama_debug",
+    "backend": "llamacpp",
     "vectorStorageBackend": "HyperDB",
     "chat_buffer_size": 20,
     "prompt_document": "ranni.json",

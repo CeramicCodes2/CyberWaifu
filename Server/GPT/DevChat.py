@@ -84,7 +84,8 @@ class Chat:
         self._prox_level:int = None
         self._level_index:int =  0 
         # evitara re uzar el algoritmo quickshort multiples veces 
-        
+        self._prp = None
+        # se utilizara para inyectar prompts en la parte del generador
         for message_pairs in message_history:
             message1, message2 = message_pairs
             self.display_messages.append([message1['content'], message2['content']])
@@ -184,7 +185,7 @@ class Chat:
                                max_tokens=self._chatSettings.chat_buffer_size,
                                n_gpu_layers=-1,
                                main_gpu=0,
-                               n_ctx=1024
+                               n_ctx=self._chatSettings.max_new_tokens
                                )
         
         self.text_completation = lambda prompt,option: self.ugenerator(prompt=prompt,**self._summarizator_model_configs) if option else self.ugenerator(prompt=prompt,**self._sentymental_model_configs)
@@ -275,16 +276,33 @@ class Chat:
             
         self._database = handler
         self._database.handler()
+    @property
+    def addMessageToSystemPrompt(self):
+        # este metodo se usara como api para introducir un mensaje al momento de confeccionar el primer prompt
+        # usar como alternativa de colocar un mensaje en self.message_history
+        response = self._prp
+        self._prp = None
+        # eliminamos el mensaje para asegurarnos de no replicaciones
+        return response
+    @addMessageToSystemPrompt.setter
+    def addMessageToSystemPrompt(self,message:tuple[dict[str,str]]):
+        self._prp = message
     
-    def makeLevelPrompt(self,item:dict[str,str]|levelPrompt):
-        self.message_history.append(
-        ({
+    def makeLevelPrompt(self,item:dict[str,str]|levelPrompt,appendHistory:bool=True) -> None | tuple[dict[str,str]]:
+        
+        rsp = ({
             "role":'system','content':item['prompt'].format(ia_prefix=self._prompt_document.ia_prefix,user_prefix=self._prompt_document.user_prefix,emotion=item['emotion'])
         },
         {
              "role":"system",'content':item['actionsPrompt'].format(ia_prefix=self._prompt_document.ia_prefix,user_prefix=self._prompt_document.user_prefix) + '\n '.join(item['actions'])
         }
-        ))
+        )
+        if appendHistory:
+            self.message_history.append(rsp)
+            return 
+        self.addMessageToSystemPrompt = rsp
+        
+        
     def quicksort(self,z:list[int]):
         # https://www.freecodecamp.org/espanol/news/algoritmos-de-ordenacion-explicados-con-ejemplos-en-javascript-python-java-y-c/
         if(len(z)>1):        
@@ -313,7 +331,7 @@ class Chat:
         #    self._prox_level =  
         
         
-    def intimacyEvent(self,response:int):
+    def intimacyEvent(self,appendHistory:bool=True):
         # esta funcion se encargara de administrar el nivel de intimidad
         # asi mismo se disparara dependiendo del nivel
         # self._prompt_document.intimacy
@@ -332,11 +350,11 @@ class Chat:
                     self._level_index += 1# incrementamos el indice
                     logging.info(f'current level: {self.dctNum[self._current_level]}')
                     
-                    self.makeLevelPrompt(item=getattr(self._prompt_document.intimacy,self.dctNum[self._current_level]))
+                    self.makeLevelPrompt(item=getattr(self._prompt_document.intimacy,self.dctNum[self._current_level]),appendHistory=appendHistory)
                     
                     logging.info('inyecting level prompt')
                     logging.info(self.message_history)
-                    
+                      
                     
                     # !si no se cumple la condicion es que estamos en el ultimo nivel
             return
@@ -363,7 +381,7 @@ class Chat:
         self.evalLevelPosition(position,lvls_ordered)
         #print(self.dctNum ,self._current_level)
         logging.info(f'current level: {self.dctNum[self._current_level]}')
-        self.makeLevelPrompt(item=getattr(self._prompt_document.intimacy,self.dctNum[self._current_level]))# crea e inyecta el prompt en el historial de mensajes
+        self.makeLevelPrompt(item=getattr(self._prompt_document.intimacy,self.dctNum[self._current_level]),appendHistory=appendHistory)# crea e inyecta el prompt en el historial de mensajes
         # guardamos el indice del nivel actual para guardar la lista de niveles ordenados
         # y asi evitar reutilizar quickshort (por que ? por que ya tenemos el proximo nivel tambien y la posicion actual)
         # ya no es necesario insertar el elemento y reordenar una y otra vez
@@ -385,7 +403,7 @@ class Chat:
             logging.info(f'updated the intimacy level: {response}')
             # False ==0 por lo tanto podemos multiplicar por -1 y esto siempre retornara un valor entero
             # MULTIPLICAMOS POR -1 LOS NEGATIVOS PARA INDICAR QUE SE RESTA Y NO SE SUMA
-            self.intimacyEvent(response)
+            self.intimacyEvent()
             
             self._prompt_document.intimacy_level += response
     @property
@@ -700,6 +718,7 @@ class Chat:
         # prompt parainyectar recurdos
         promptMemories = self._prompt_memories
         if self._chat_injection_Prompt:
+            logging.info('SUPRESS INJECTION OF SYSTEM MEMORIES')
             logging.warn(message_history)
             main_dct.extend(self.pair2tuple(message_history))
             main_dct.append({"role":self.user_alias,"content":f"{message}"})
@@ -715,14 +734,24 @@ class Chat:
         usrInput = f"{message}\n"
         main_dct.append({"role":"system","content":prp})
         self.llama_injectExamples(main_dct)
+        # llamamos al evento
+        self.intimacyEvent(appendHistory=False)
+        message = self.addMessageToSystemPrompt
+        if message:
+            
+            main_dct.extend(message)
+            #print(main_dct)
+            # solo se a;ade si no es None
         main_dct.append({"role":"system","content":sysHist})
         main_dct.extend(self.pair2tuple(message_history))
+        
         main_dct.append({"role":"system","content":usrIndication})
         main_dct.append({"role":self.user_alias,"content":usrInput})
+        logging.info('messages system dict')
         logging.info(main_dct)
         self.get_prompt = main_dct
         #print(main_dct)
-        self._chat_injection_Prompt = True
+        # self._chat_injection_Prompt = True
         #logging.error(main_dct)
         return self.generator(
             messages=main_dct
