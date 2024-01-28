@@ -1,37 +1,29 @@
-# CyberWaifu Server - <u>GPT</u>
+| Link                                                                                                    | Model                      | file | size |     |
+| ------------------------------------------------------------------------------------------------------- | -------------------------- | ---- | ---- | --- |
+| [calypso-3b-alpha-v2-quantificated ](https://huggingface.co/Aryanne/Calypso-3B-alpha-v2-gguf/tree/main) |                            |      |      |     |
+| **[EleutherAI/gpt-neo-125M · Hugging Face](https://huggingface.co/EleutherAI/gpt-neo-125M)**            | **～500MB**                |      |      |     |
+| [EleutherAI/gpt-neo-1.3B · Hugging Face](https://huggingface.co/EleutherAI/gpt-neo-1.3B)                | ～5GB                      |      |      |     |
+| [EleutherAI/gpt-neo-2.7B · Hugging Face](https://huggingface.co/EleutherAI/gpt-neo-2.7B)                | ～10GB                     |      |      |     |
+| [EleutherAI/gpt-j-6B · Hugging Face](https://huggingface.co/EleutherAI/gpt-j-6B)                        | ～12G(FP16) or ～24G(FP32) |       |     |     |
+| [EleutherAI/gpt-neox-20b · Hugging Face](https://huggingface.co/EleutherAI/gpt-neox-20b)                | ～35GB!                    |      |      |     |
 
-## Getting Started
+### models for sentymental analysis 💌
+you can use tow models:
 
-### download model
-
-Link    Model file size
-[calypso-3b-alpha-v2-quantificated ](https://huggingface.co/Aryanne/Calypso-3B-alpha-v2-gguf/tree/main)
-
-**[EleutherAI/gpt-neo-125M · Hugging Face](https://huggingface.co/EleutherAI/gpt-neo-125M)    ～500MB**
-
-[EleutherAI/gpt-neo-1.3B · Hugging Face](https://huggingface.co/EleutherAI/gpt-neo-1.3B)    ～5GB
-
-[EleutherAI/gpt-neo-2.7B · Hugging Face](https://huggingface.co/EleutherAI/gpt-neo-2.7B)    ～10GB
-
-[EleutherAI/gpt-j-6B · Hugging Face](https://huggingface.co/EleutherAI/gpt-j-6B)    ～12G(FP16) or ～24G(FP32)
-
-[EleutherAI/gpt-neox-20b · Hugging Face](https://huggingface.co/EleutherAI/gpt-neox-20b)    ～35GB!
-
-### models for sentymental analysis
-28 emotions
+>- 28 emotions
 ```sh
 git lfs install
 git clone https://huggingface.co/joeddav/distilbert-base-uncased-go-emotions-student
 ```
 
-or 
-6 emotions
+
+>- 6 emotions
 
 ```sh
 https://huggingface.co/nateraw/bert-base-uncased-emotion
 ```
 
-### configure model
+### 🎉 configure model 🎉
 
 ```shell
 # git clone https://github.com/jieran233/CyberWaifu.git
@@ -42,7 +34,11 @@ cd Server
 ln -s <path/to/gpt/model/folder> GPT/model
 ```
 
-### create venv & install pip dependencies
+## create venv & install pip dependencies 🐍
+
+### termux install
+
+### others
 
 Before create venv, you have to install **python3.10** first. (or using conda environment)
 
@@ -58,7 +54,16 @@ python -m pip install --upgrade setuptools wheel pip
 pip install -r requirements.txt
 ```
 
-### RUN GPT SERVER
+####  using pipenv
+
+```shell
+pip install pipenv
+pipenv install
+```
+
+
+### RUN GPT SERVER 🧠
+
 
 ```shell
 # conda deactivate
@@ -66,26 +71,32 @@ pip install -r requirements.txt
 cd CyberWaifu/Server/GPT
 source venv/bin/activate
 
-python main.py
+flask --app api run
 # http://127.0.0.1:7210
 ```
 
-## Config file Manual
+#### using pipenv
 
-### config/settings.json
+```shell
+d CyberWaifu/Server/GPT
+pipenv shell
 
-|                  |                 |                                                                   |
-| ---------------- | --------------- | ----------------------------------------------------------------- |
-| `"conversation"` | `true`or`false` | 对话模式。完善prompt以适应[对话]场景                                            |
-| `"sentence"`     | `true`or`false` | 截取整句。丢弃生成的文本中最后一个出现的句点后面的内容（如果生成的文本中不存在句点则会尝试继续生成直到它出现）           |
-| `no-lf`          | `true`or`false` | 丢弃生成的文本中所有的换行符                                                    |
-| `"no-prompt"`    | `true`or`false` | 丢弃生成的文本中包含的输入的内容（兼容输入输出翻译）                                        |
-| `"answer-only"`  | `true`or`false` | 对话模式下，生成的文本仅保留回答的内容（需要以下2项为`true`：`"conversation"` `"no-prompt"`） |
-| `"length"`       | int             | 生成的文本的长度。min_length = length * imax_length = length * 2 * i       |
-|                  |                 |                                                                   |
-|                  |                 |                                                                   |
-|                  |                 |                                                                   |
-|                  |                 |                                                                   |
+flask --app api run
+# http://127.0.0.1:5000
+```
+
+
+
+# Config file Manual
+
+## vector storage database 📑
+
+`CyberWaifu` can use two db motors:
+
+| motor      | description                                                                                                       | modes |
+| ---------- | ----------------------------------------------------------------------------------------------------------------- | ----- |
+| `chromadb` | it can be used on any pc its very fast but it cannot work's in emulators like termux                              |   support for 3 operation modes `client` `server` `processClient`    |
+| `hyperdb`  | this database can be used on emulators like termux that's the principal motive of implement this type of database |      only supports `on premise` mode (it cannot connect to a database in other pc) |
 
 
 
