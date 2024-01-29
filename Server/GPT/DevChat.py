@@ -2,7 +2,7 @@
 #import torch
 from models import ModelLoader,ChatBotSettings,Settings,Google_trans,Baidu_trans,PromptDocument,join,Metadata,GenericPrompt,IntimacyData,levelPrompt
 from datetime import datetime
-from lemantizer import lemantize
+from lemantizer import lemantize,lemantizeStr
 import logging
 
 
@@ -56,24 +56,36 @@ Continuing from the previous conversation, write what {character_name} says to {
 def cute_print(name,age):
     print(name,age)
 
+'''
 from models import ModelDescription,EventPrompt
+
+
+
 class Tool:
-    def __init__(self,tool_path:str):
+    def __init__(self,tool_path:str,text_generator:str):
         self.testTool = [
             EventPrompt(
-                name='date',
-                description='go to date with {user_prefix}',
+                name='have sex with {user_prefix}',
+                description='Things between {user_prefix} and {ia_prefix}  are getting horney',
                 models=[
-                    #ModelDescription(
-                    #    model_name='fella',
-                    #    
-                    #)
+                    ModelDescription(
+                        model_name='Blowjob',
+                        description='make a blowjob to {user_prefix}',
+                        expressions_description={
+                            '':''    
+                        },
+                        model_motions_description={},
+                        emotions_associed={},
+                        promptModel=[]
+                        
+                    )
                 ],
                 promptEvent='{ia_prefix} and {user_prefix} go to a date'
             )
         ]
     def createPrompt(self):
         pass
+'''
 class Chat:
     def __init__(self, message_history=[],inject_chat_prompt=True):
         self.load_settings()
@@ -245,7 +257,7 @@ class Chat:
                               "total_tokens": 42
                             }
                 }
-                chat_solve = {'id': 'chatcmpl-dfd730c5-e868-43b0-bc89-f76e3a1848fa', 'object': 'chat.completion', 'created': 1705535043, 'model': 'model/mistral-pygmalion-7b.Q4_K_M.gguf', 'choices': [{'index': 0, 'message': {'role': 'assistant', 'content': 'i love u too'}, 'finish_reason': 'stop'}], 'usage': {'prompt_tokens': 421, 'completion_tokens': 0, 'total_tokens': 421}}
+                chat_solve = {'id': 'chatcmpl-dfd730c5-e868-43b0-bc89-f76e3a1848fa', 'object': 'chat.completion', 'created': 1705535043, 'model': 'model/mistral-pygmalion-7b.Q4_K_M.gguf', 'choices': [{'index': 0, 'message': {'role': 'assistant', 'content': '*Ranni winked and raised his left eyebrow and puts a love face*'}, 'finish_reason': 'stop'}], 'usage': {'prompt_tokens': 421, 'completion_tokens': 0, 'total_tokens': 421}}
                 
                 self.use_llama = True
                 self.ugenerator = lambda prompt,**kwargs: solve
@@ -337,7 +349,15 @@ class Chat:
     def evalLevelPosition(self,position:int,lvls_ordered:list[int]):
         
         if position != 0:
-            self._current_level = lvls_ordered[position -1]# nivel que se ha desbloqueado
+            
+            # self._current_level 
+            # puede darse el caso que position == next_level 
+            if position+1 <= (len(lvls_ordered)-1):
+                lvls_ordered[position] == lvls_ordered[position+1]
+                self._current_level = lvls_ordered[position+1]
+                position += 1# recorremos la posicion
+            else:
+                self._current_level = lvls_ordered[position -1]# nivel que se ha desbloqueado
         else:
             self._current_level = min(lvls_ordered) if min(lvls_ordered) != lvls_ordered[position] else lvls_ordered[position+1]# esto deberia retornar el null_level
         if position+1 <= (len(lvls_ordered)-1) and position <= (len(lvls_ordered) -1):
@@ -457,6 +477,31 @@ class Chat:
     @live2dModel.deleter
     def live2dModel(self):
         self._live2dmodel = self._prompt_document.motions.default_model
+    def searchMapCoincidence(self,map_f,word):
+        for mp in map_f.keys():
+            if word.find(mp) != -1:
+                
+                yield mp 
+            
+    def compareCoincidence(self,word:str):
+        # funcion para comparar coincidencias entre la palabra generada por la IA y un mapeo de palabras
+        # para cargar modelos de live2d o emociones
+        print(f'START COINCIDENCE COMPARATOR for {word}')
+        fe = [x for x in self.searchMapCoincidence(self._prompt_document.motions.map_feelingExpressions,word)]
+        fm = [x for x in self.searchMapCoincidence(self._prompt_document.motions.map_feelingModel,word)]
+        print(fe,fm)
+        if len(fe) == 0:
+            self.expression = False
+            logging.info(f'no emiting expresion')
+        if len(fm) == 0:
+            self.live2dModel = False
+            logging.info(f'no emiting motion')
+        for em in fe:
+            self.expression = em
+            logging.info('emmotion emmited !')
+        for m in fm:
+            self.live2dModel = m
+            logging.info('motion emited !')
         
     def extractSpecialWords(self,ia_output:str) ->dict[str,str]:
         ''' 
@@ -467,28 +512,15 @@ class Chat:
         '''
         logging.info('INGRESING IA OTUPUT')
         logging.info(ia_output)
-        lmWords = lemantize(ia_output,returnList=True)
-
-        for word in lmWords:
-            '''
-            if response:=self._prompt_document.motions.increment_intimacy_sentiments.get(word,False) or self._prompt_document.motions.decrement_intimacy_sentiments.get(word,False) * -1:
-                self.intimacyLevel = response
-                logging.info(f'updated the intimacy level: {response}')
-                # False ==0 por lo tanto podemos multiplicar por -1 y esto siempre retornara un valor entero
-                # MULTIPLICAMOS POR -1 LOS NEGATIVOS PARA INDICAR QUE SE RESTA Y NO SE SUMA'''
-            match word:
-                case [word] if word in self._prompt_document.motions.map_feelingExpressions:
-                    self._prompt_document.motions.map_feelingExpressions[word]
-                    logging.info(f'emiting expresion: {word}')
-                case [word] if word in self._prompt_document.motions.map_feelingModel:
-                    self._prompt_document.motions.map_feelingModel[word]
-                    logging.info(f'emiting motion:  {word}')
-                case [word] if not(word in self._prompt_document.motions.map_feelingExpressions):
-                    self.expression = False
-                    logging.info(f'no emiting expresion')
-                case [word] if not(word in self._prompt_document.motions.map_feelingModel):
-                    logging.info(f'no emiting motion')
-                    self.live2dModel = False
+        # if self._prompt_document.motions.map_feelingExpressionsComposed or self._prompt_document.motions.map_feelingModelComposed:
+        #     # si alguno es verdad 
+        #     lmWords = lemantizePairedStr(ia_output)
+        # else:
+        #     lmWords = lemantize(ia_output,returnList=True)
+        lmWords = lemantizeStr(ia_output)
+        self.compareCoincidence(lmWords)
+        #for word in lmWords:
+        #    self.compareCoincidence(word)
             
     def updatePromptValues(self):
         ''' metodo usado para actualizar valores como el nivel de intimidad '''
@@ -766,7 +798,7 @@ class Chat:
         self.intimacyEvent(appendHistory=False)
         message = self.addMessageToSystemPrompt
         if message:
-            
+            print(message)
             main_dct.extend(message)
             # solo se a;ade si no es None
         main_dct.append({"role":"system","content":sysHist})
@@ -891,7 +923,7 @@ class Chat:
         return prompt
     def run(self,message):
         rsp = self.update_conversation(message=message)
-        #print(rsp)
+        print(rsp)
         return rsp
         #self.reset_message_history()
 

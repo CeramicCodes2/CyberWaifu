@@ -11,8 +11,9 @@ if [$option == "Y"] || [$option == 'y'];
 then
     echo 'INSTALLING NLTK FOR TEXT EXTRACT SPECIAL WORDS'
     pip install nltk
-    python -c "import nltk;nltk.download('punkt');nltk.download('wordnet');nltk.download('averaged_perceptron_tagger')"
+    python -c "import nltk;nltk.download('punkt');nltk.download('wordnet');nltk.download('averaged_perceptron_tagger');nltk.download('stopwords')"
 fi
+
 
 
 

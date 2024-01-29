@@ -228,20 +228,34 @@ class MotionsInfo:
     # incrementar un nivel respecto a un key
     map_feelingExpressions:dict[str,str]
     # se usa para un mapa de sentimiento:expresion sentimiento:Motion
-    
+    # si en el texto generado por la ia se encuentra alguna llave o valor
+    # entonces se emitira la expresion
     map_feelingModel:dict[str,str]
     # dependiendo de alguna palabra clave se cambiara de un modelo a otro o desatara una expresion
     # por que usar este enfoque y no utilizar simplemente herramientas ?
     # por que este enfoque evitara que se realizen multiples llamadas al llm y ahorrara tiempo de reaccion
+    
     increment_intimacy_sentiments:dict[str,str]
     decrement_intimacy_sentiments:dict[str,str]
+    map_feelingModelComposed:bool = False# esta es una bandera que procesara el metodo post inir
+    # significa que si el usuario coloco alguna oracion como modelo es decir
+    # 'kiss moth' por ejemplo se marcara como True
+    # hacemos esto tanto en el modelo como en las expresiones
+    # ya que los argumentos de lemantize cambian en funcion de esto
+    map_feelingExpressionsComposed:bool = False
     default_model:str = 'goth'
     default_expression:str = 'idle'
+    def __post_init__(self):
+        cmp = lambda cmp_map: True if (any([True if ' ' in expr else False  for expr in cmp_map.keys()])) else False# se conserva el valor por defecto
+        if cmp(self.map_feelingExpressions):
+            self.map_feelingExpressionsComposed = True
+        if cmp(self.map_feelingModel):
+            self.map_feelingModelComposed = True
+        
     def __str__(self):
         return convertObject2JsonData(self)
 
 # MODELS AND EVENTS DESCRIPTION FOR INJECT TO THE PROMPT
-
 @dataclass
 class ModelDescription:
     # esta clase se usara para indicarle que hace cada modelo de live2d

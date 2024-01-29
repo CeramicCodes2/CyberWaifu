@@ -8,7 +8,10 @@
         "default_model": "goth",
         "default_expression": "01",
         "map_feelingExpressions": {
-            "happy": "32"
+            "happy": "32",
+            "love":"70",
+            "love face":"23",
+            "raise left eyebrow":"11"
         },
         "map_feelingModel": {
             "dog style":"",

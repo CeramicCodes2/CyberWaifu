@@ -11,7 +11,8 @@
             "happy": "32"
         },
         "map_feelingModel": {
-            "ride": "ride"
+            "ride": "ride",
+            "dog style":"gg"
         },
         "increment_intimacy_sentiments": {
             "love": 4,
