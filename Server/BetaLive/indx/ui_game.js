@@ -170,7 +170,7 @@ class UI_GAME{
         await this.mapBar();
         await this.mapSignalAnimation();
         await this.mapTextWindow();
-        this._spriteDict.textWindow['windowObject'].addNewMessage('IA','HELLO WORLD !')
+        //this._spriteDict.textWindow['windowObject'].addNewMessage('IA','HELLO WORLD !')
         //this._spriteDict["love_level"]["methadata"]["alter_state"]();
 
         /*
@@ -395,6 +395,16 @@ class MAIN_LEVEL extends UI_GAME{
         
         super(app)
         this.waitAnimation = (sprite,ths,ButtonSettings)=>setTimeout(async (ths)=>{sprite.texture = ths.assets[ButtonSettings.assetKey]},100,ths);
+        this.max_state = this.fetchApi(`max_intimacy`);
+        this.DEFAULT_HEADERS = {
+            method:'',
+        }
+
+    }
+    async fetchApi(path){
+        let response = await fetch(`http://127.0.0.1:5000/api/${path}`);
+        return await response.json();
+
     }
     async objectInteraction(){
         /*funcion para crear un objeto que mapeara la referencia de la una funcion callback con una accion es decir
@@ -402,11 +412,9 @@ class MAIN_LEVEL extends UI_GAME{
         */
        await super.objectInteraction();
        this.callBacks = {
-        "ArrowRightOnClick":{"event":"click","hook":this.ArrowRightOnClick},
         "sound_OffOnClick":{"event":"click","hook":this.sound_OffOnClick},
         "sound_OnOnClick":{"event":"click","hook":this.sound_OnOnClick},
-        "love_levelUpgradeProgress":{"hook":this.love_levelUpgradeProgress},
-        "textWindow":{"event":"wheel","hook":this.add_message}
+        "love_levelUpgradeProgress":{"hook":this.love_levelUpgradeProgress}
         
     }
     }
@@ -428,16 +436,7 @@ class MAIN_LEVEL extends UI_GAME{
         ths.waitAnimation(sprite,ths,ButtonSettings);
     }
     love_levelUpgradeProgress(ths,spriteBack,LoadSprite){
-        //LoadSprite.width = LoadSprite.width;
-        /*
-        let max_level = LoadSprite.width;
-        LoadSprite.width *= 0.1;
-        ths.n = 0.5;
-
-        setInterval(async (ths,max_level)=>{
-            ths.n >= 10? ths.app.stage.removeChild(LoadSprite):((ths)=>{ths.n+= 0.3;LoadSprite.width = max_level * ths.n;console.log(ths.n)}
-        )(ths)},1000,ths,LoadSprite.width);*/
-
+        
     }
     async rana(){
         console.log(this._spriteDict);
@@ -445,9 +444,10 @@ class MAIN_LEVEL extends UI_GAME{
     async seg(){
         await super.seg();
         await this.rana();
-        console.log(this._spriteDict['textWindow'].windowObject._messageHistory)
-        this._spriteDict['textWindow'].methadata.alter_state('hello',' world')
-        //this._spriteDict.love_level.methadata.alter_state();
+        //console.log(this._spriteDict['textWindow'].windowObject._messageHistory)
+        //this._spriteDict['textWindow'].methadata.alter_state('hello',' world')
+        this._spriteDict.love_level.methadata.alter_state();
+        //console.log(this.this._spriteDict['love_levelUpgradeProgress'])
 
     }
 }

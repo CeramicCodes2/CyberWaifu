@@ -36,7 +36,7 @@
     
     <textarea id="testWrite" cols="30" rows="10">
     </textarea>
-    <button id='btn' type="button">
+    <button id='btn' type="button" onclick="textAreaProcessor()">
         SUBMIT
     </button>
     <textarea id="output" cols="30" rows="10">
@@ -44,6 +44,28 @@
     </textarea>
 
     <script>
+        async function textAreaProcessor(){
+            const methodSpecs = {
+                method:"GET"
+            }
+            const output = document.getElementById('output');
+            let doc = document.getElementById('testWrite');
+
+            let response = doc.value.length != 0 && doc.value.length != undefined? fetch(`http://127.0.0.1:5000/api/text/${doc.value}`,methodSpecs): false;
+            //console.log(await response.text())
+            if(response instanceof Promise){
+
+                response = await response;
+                if(response.body != null){
+                    let jrep = await response.json()
+                    output.value = jrep['text'].at(-1)// ultimo indice
+                }
+            }
+
+            // else no hacemos nada no se ha escrito nada
+        
+
+    }
         main();
     </script>
 </body>

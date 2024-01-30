@@ -12,4 +12,6 @@ def main():
 def getModelsFiles():
     return jsonify(listdir(MODELS_DIR))
     
+if __name__ == '__main__':
+    app.run(debug=True,port=8080)
     
