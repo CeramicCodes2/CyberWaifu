@@ -1,0 +1,10 @@
+{
+    "prompt":"### Instruction: \n The prompt below is a question to answer, a task to complete, or a conversation to respond to; decide which and write an appropriate response. \n according to the conversation between {ia_prefix} and {user_prefix} \n conversation: \n {messages} \n select a tool from the following tool's if you consider it necessary (if not necessary say 'void'): \n {tools} \n tool:",
+    "model_configs":{
+        "max_tokens":512,
+        "temperature":0.7,
+        "top_p": 0.75,
+        "top_k": 50,
+        "stop":["tool"]
+    }
+}

@@ -258,30 +258,68 @@ class MotionsInfo:
 # MODELS AND EVENTS DESCRIPTION FOR INJECT TO THE PROMPT
 @dataclass
 class ModelDescription:
+    _for = 'models'
     # esta clase se usara para indicarle que hace cada modelo de live2d
     model_name:str# nombre del modelo ( no tiene nada que ver con el nombre del modelo que se usa en live2d para su ejecucion ) aqui debe ser un nombre descriptivo
-    description:str
-    _model_live2dId:str# id para ubicar el modelo y requerir su ejecucion al front
-    expressions_description:dict[str,str]# = {"put an orgasm face":'expression01.exp'}
-    model_motions_description:dict[str,str] #= {'hug':'hug the {user_prefix} face'}
+    description:str# descripcion de la accion del modelo
+    # se puede usar ia_prefix y user_prefix
+    
+    model_live2dId:str# id para ubicar el modelo y requerir su ejecucion al front
     emotions_associed:list[str]# = ['love','desire']
+    expressions_description:dict[str,dict[str,str]]| str #= {"":{"description":'',"id_expression":'expression01.exp'}}
+    
+    # descripcion de alguna cosa que puede hacer el modelo por ejemplo levantar una cega se usara para que la ia pueda generar
+    # nuevas caras ( osea nuevas expresiones faciales)
+    
+    model_motions_description:dict[str,dict[str,str]]|str #= {'':{"description":'',"id_motion":"live2dmotion_id"}} #{'high':"incrementa la velocidad de la mamada"}
+    # movimientos del modelo 
+    
     promptModel:str = ''# se arma en el post init
     def __post_init__(self):
-        self.promptModel = f'{self.model_name} \n {self.description} \n The following are expressions that you can make:'
-        self.promptModel += "\n".join([expression for expression in self.expressions_description.keys()])
-        # expressions model
-        self.promptModel += '\n and these are some moves you can do: '
-        self.promptModel += "\n".join([motion for motion in self.model_motions_description.keys()])
+        if self.promptModel:
+            return
+        self.promptModel = f'\n description: {self.description} \n The following are expressions that you can make:'
+        try:
+            assert self.expressions_description != {} or self.model_motions_description != {}
+        except: print('ERROR NOT ALLOWED A VOIID EXPRESSION OR MOTION DICTONARY !')
+        print('expr',self.expressions_description)
+        try:
+            self.promptModel += "\n".join([f"\n\t {key}: {expression['description']}" for key,expression in self.expressions_description.items()])
+            # expressions model
+            self.promptModel += '\n and these are some moves you can do with the description: '
+            self.promptModel += "\n".join([f"\n\t {key}: {motion['description']}" for key,motion in self.model_motions_description.items()])
+        except:
+            pass
+    def toDict(self):
+        return convert2Dict(self)
     def __str__(self):
-        return {self.model_name:{'description':self.description,'model_motions_description':self.model_motions_description}}
+        return convertObject2JsonData(self)#{self.model_name:{'description':self.description,'model_motions_description':self.model_motions_description}}
     
 @dataclass
 class EventPrompt:
     name:str# nombre del evento (ejemplo salir de cita)
-    description:str# descripccion del evento ( ejemplo ir de cita con user_prefix)
-    models:list[ModelDescription]
-    # lista de modelos con descripcion y eso
-    promptEvent:str = '*{ia_prefix} is in a pose {pose_description} *'
+    description:str# descripccion del evento ( ejemplo ir de cita con user_prefix) ( se puede usar {ia_prefix} y {user_prefix})
+    models:list[ModelDescription|dict[str,str]]
+    # lista de modelos live2d con descripcion y eso
+    
+    # la descripcion detallara lo que hace el modelo y algunos otros argumentos
+    # por ejemplo si un modelo se trata de correr puede tener diferentes velocidades
+    # alto bajo o nulo en modelsDescription se detallara eso
+    actionsAssociated:list[str]# acciones asociadas esto se usara para discernir que herramientas
+    # ['kiss'] ejemplo si se encuentra en el nivel de intimidad se podra mostrar esta herramienta
+    # mostrar o no dependiendo del nivel actual de intimidad
+    promptEvent:str = ''# prompt customizado para el evento  puede ser '' y se pueden suar ia_prefix y user_prefix
+    # TODO: ESTE PROMPT PUEDE SER ia_prefix y user_prefix fueron de cita y ahora se encuentran en {lugar}
+    #  este prompt remplazara una parte del world scenario (es una idea) o se incertara en este en un campo llamado lugar o place
+    # si se encuentra este mismo en el prompt claro
+    def __post_init__(self):
+        self.models = [ x if isinstance(x,dict) else convert2Dict(x) for x in self.models]
+    def __str__(self):
+        ddata = dict((x,y) if not(isinstance(y,ModelDescription)) else (x,convert2Dict(y)) for x,y in vars(self).items() if not(x.startswith("_")))
+        return dumps(ddata,indent=4)
+    def toDict(self):
+        ddata = dict((x,y) if not(isinstance(y,ModelDescription)) else (x,convert2Dict(y)) for x,y in vars(self).items() if not(x.startswith("_")))
+        return ddata
 @dataclass
 class levelPrompt:
     model:str
@@ -398,6 +436,7 @@ class PromptDocument:
     personality:str
     motions:MotionsInfo|dict[str,str]# = MotionsInfo()# Not implemented yet
     intimacy:dict[str,str]|IntimacyData
+    enabled_events:list[str] #['']# nombre de los eventos permitidos
     scenario:str = ""
     temp:float = 0.6
     intimacy_level:int = 0
@@ -442,9 +481,11 @@ class ChatBotSettings:
     prompt_summarization_document:str = "summarization.json"
     prompt_sentymental_analysis_document:str = "sentymental.json"
     prompt_memories_document:str = "memories.json"
+    prompt_event_or_tool_selector:str = "EventToolPrompt.json"
     full_sentymental_analysis_document:str = join(prompt_paths,prompt_sentymental_analysis_document)
     full_summarization_document:str = join(prompt_paths,prompt_summarization_document)
     full_memories_document:str = join(prompt_paths,prompt_memories_document)
+    full_event_or_tool_selector:str = join(prompt_paths,prompt_memories_document)
     use_vectorStoragedb:bool = False
     use_summarysation:bool = True
     use_sentymental_analysis:bool = False
@@ -778,7 +819,50 @@ class ChomaDBHandler(BaseHandler):
         
         self.collection = self._chroma_config.current_collection
         print(f"USING {self._chroma_config.current_collection} COLLECTION".center(20,"#"))
-        return 0 
+        return 0
+    def getLeastMessage(self,least_messages:int=2) -> list[list[dict[str,str],dict[str,str]]]:
+        
+        '''
+        retornara el ultimo mensaje por defecto en forma de tupla
+        [
+            [{
+                "methadatas":[""],"documents":[],"ids":[]
+            },
+            {
+                "methadatas":[""],"documents":[],"ids":[]
+            }]
+        ]
+            
+        least_messages -> numero de mensajes a retornar deben ser bloques de 2 en 2 ( debe ser modular de 2)
+        
+        
+        '''
+        if not(least_messages%2 == 0):
+            raise ValueError("the argument least_messages should be pair of two")
+        if self._collection.count()==0:
+            return# no realiza ninguna accion
+        getNum = lambda knum:  self._collection.get(ids=[str(self._collection.count() - knum)])
+        leastConversation = [getNum(x) for x in range(0,least_messages)]# los 2 ultimos mensajes
+        # dividimos mensajes en pares de mensajes y convertimos adiccionario
+        llc = len(leastConversation)
+        ul = [ x for x in range(0,llc,2)]
+        rp = [ [x,x+1] for x in range(0,llc) if x in ul]
+        #for x in rp:
+        #    print('LEAST CONVERSATION')
+        #    print(leastConversation[x[0]]["documents"][0].split(':'),leastConversation[x[1]]["documents"][0].split(":"))
+        #    
+        #    #{"role":""}
+        #    #[leastConversation[x[0]],leastConversation[x[1]]]
+        return [[leastConversation[x[0]],leastConversation[x[1]]] for x in rp]
+                
+             
+ 
+            
+        
+        
+        
+        
+        pass
     def commit(self):
         # not nidded for chroma
         pass

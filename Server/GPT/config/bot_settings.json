@@ -1,5 +1,5 @@
 {
-    "backend": "llama_debug",
+    "backend": "llamacpp",
     "vectorStorageBackend": "HyperDB",
     "chat_buffer_size": 20,
     "prompt_document": "ranni.json",
@@ -8,7 +8,8 @@
     "prompt_sentymental_analysis_document": "sentymental.json",
     "full_sentymental_analysis_document": "prompt_paths/sentymental.json",
     "full_summarization_document": "prompt_paths/summarization.json",
-    "use_vectorStoragedb": false,
+    "full_event_or_tool_selector":"prompt_paths/EventToolPrompt.json",
+    "use_vectorStoragedb": true,
     "use_summarysation": true,
     "use_sentymental_analysis":true,
     "max_sumarization_lengt": 100,
@@ -24,7 +25,7 @@
     "early_stopping": true,
     "load_in_8bit": false,
     "hook_storage": 2,
-    "vector_storage_configuration_file": "chroma_db.json",
+    "vector_storage_configuration_file": "hyperdb_config.json",
     "specialized_sentymental_model":"distilbert-base-uncased-go-emotions-student",
     "processEveryIaMessageAfterInference":true,
     "use_specialized_model":true

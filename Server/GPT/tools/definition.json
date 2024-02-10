@@ -1,0 +1,32 @@
+{
+    "name": "sex",
+    "description": "have sex with {user_prefix}",
+    "models": [
+        {
+            "model_name": "blowjob",
+            "description": "make a blow job to {user_prefix}",
+            "model_live2dId": "fella",
+            "expressions_description": {
+                "orgasm face": {
+                    "description": "put an orgasm face",
+                    "id_expression": "exp"
+                }
+            },
+            "model_motions_description": {
+                "hug": {
+                    "description": "hug the {user_prefix} face",
+                    "id_motion": "11.mtn"
+                }
+            },
+            "emotions_associed": [
+                "love",
+                "desire"
+            ],
+            "promptModel": ""
+        }
+    ],
+    "actionsAssociated": [
+        "sex"
+    ],
+    "promptEvent": ""
+}

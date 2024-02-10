@@ -348,6 +348,49 @@ class HyperDBHandler(BaseHandler):
         print("PRE DC".center(30,"#"),dc)
         logging.info(dc)
         self.collection.add(dc)
+    def getLeastMessage(self,least_messages:int=2) -> list[list[dict[str,str],dict[str,str]]]:
+        
+        '''
+        retornara el ultimo mensaje por defecto en forma de tupla
+        [
+            [{
+                "methadatas":[""],"documents":[],"ids":[]
+            },
+            {
+                "methadatas":[""],"documents":[],"ids":[]
+            }]
+        ]
+            
+        least_messages -> numero de mensajes a retornar deben ser bloques de 2 en 2 ( debe ser modular de 2)
+        
+        
+        '''
+        if not(least_messages%2 == 0):
+            raise ValueError("the argument least_messages should be pair of two")
+        if self._collection.count()==0:
+            return# no realiza ninguna accion
+        getNum = lambda knum:  self._collection.get(key=(self._collection.count() - knum))
+        leastConversation = [getNum(x) for x in range(0,least_messages)]# los 2 ultimos mensajes
+        # dividimos mensajes en pares de mensajes y convertimos adiccionario
+        llc = len(leastConversation)
+        ul = [ x for x in range(0,llc,2)]
+        rp = [ [x,x+1] for x in range(0,llc) if x in ul]
+        #for x in rp:
+        #    print('LEAST CONVERSATION')
+        #    print(leastConversation[x[0]]["documents"][0].split(':'),leastConversation[x[1]]["documents"][0].split(":"))
+        #    
+        #    #{"role":""}
+        #    #[leastConversation[x[0]],leastConversation[x[1]]]
+        return [[leastConversation[x[0]],leastConversation[x[1]]] for x in rp]
+                
+             
+ 
+            
+        
+        
+        
+        
+        pass
     def commit(self):
         self.collection.commit()
         
@@ -355,22 +398,23 @@ if __name__ == '__main__':
     #print(HyperDb(current_collection='ranni'))
     
     client = HyperDBHandler(ia_prefix='ranni')
-    #client.indexer()
+    client.indexer()
     client.handler()
     #print(client.collection.peek())
-    #
-    #print(client.collection.get(3))
-    #client.createDocument(
-    #    past_dialogue=["ORDER: IRQ RANNI"],
-    #    metha=Metadata()
-    #)
-    #client.commit()
-    #del client
-    #print(client.collection.peek())
-    print(client.extractChunkFromDB(
-        message='jcka'
-    ))
-    #print(client.collection.peek())
+    # 
+    # print(client.collection.get(3))
+    # client.createDocument(
+        # past_dialogue=["ORDER: IRQ RANNI"],
+        # metha=Metadata()
+    # )
+    # client.commit()
+    # del client
+    # print(client.collection.peek())
+    # print(client.extractChunkFromDB(
+        # message='jcka'
+    # ))
+    # 
+    # print(client.collection.peek())
     #client.commit()
     #client.createDocument(
     #    past_dialogue=["ORDER: IRQ RANNI"],

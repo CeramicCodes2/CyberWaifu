@@ -8,6 +8,17 @@ TextureCache = PIXI.utils.TextureCache,
 Container = PIXI.Container,
 Text = PIXI.Text;
 
+let API_ROUTE = 'http://127.0.0.1:5000/api/'
+
+async function get(path){
+    let response = await fetch(`${API_ROUTE}${path}`);
+    return await response.json();
+}
+
+async function post(path){
+    let response = await fetch(`${API_ROUTE}${path}`,{method:'POST'});
+    return await response.json();
+}
 
 class TextWindow{
     "use strict"
@@ -390,20 +401,13 @@ class UI_GAME{
 
     }
 }
+
 class MAIN_LEVEL extends UI_GAME{
-    constructor(app){
-        
+    "use strict"
+    constructor(app){ 
         super(app)
         this.waitAnimation = (sprite,ths,ButtonSettings)=>setTimeout(async (ths)=>{sprite.texture = ths.assets[ButtonSettings.assetKey]},100,ths);
-        this.max_state = this.fetchApi(`max_intimacy`);
-        this.DEFAULT_HEADERS = {
-            method:'',
-        }
 
-    }
-    async fetchApi(path){
-        let response = await fetch(`http://127.0.0.1:5000/api/${path}`);
-        return await response.json();
 
     }
     async objectInteraction(){
@@ -414,7 +418,7 @@ class MAIN_LEVEL extends UI_GAME{
        this.callBacks = {
         "sound_OffOnClick":{"event":"click","hook":this.sound_OffOnClick},
         "sound_OnOnClick":{"event":"click","hook":this.sound_OnOnClick},
-        "love_levelUpgradeProgress":{"hook":this.love_levelUpgradeProgress}
+        "love_levelUpgradeProgress":{"hook":this.love_levelUpgradeProgress},
         
     }
     }
@@ -435,19 +439,27 @@ class MAIN_LEVEL extends UI_GAME{
         sprite.texture = ths.assets[ButtonSettings.assetHover];
         ths.waitAnimation(sprite,ths,ButtonSettings);
     }
-    love_levelUpgradeProgress(ths,spriteBack,LoadSprite){
-        
+    async love_levelUpgradeProgress(ths,spriteBack,LoadSprite){
+        // obtenemos el nivel actual de intimidad y aplicamos una regla de 3
+        /*
+        x = (sprite_width*current_intimacy)/max_state
+        */
+       if(typeof this.max_state !== 'number'){
+        // consultamos osolo una vez para fijar el valor
+        this.max_state = await get("max_intimacy");
+        this.max_state = this.max_state['max_level']
+      }
+      let response = await get('intimacy');
+      LoadSprite.width = parseInt((response['intimacyLevel'] * LoadSprite.width)/this.max_state);
     }
     async rana(){
         console.log(this._spriteDict);
+        
     }
     async seg(){
         await super.seg();
         await this.rana();
-        //console.log(this._spriteDict['textWindow'].windowObject._messageHistory)
-        //this._spriteDict['textWindow'].methadata.alter_state('hello',' world')
-        this._spriteDict.love_level.methadata.alter_state();
-        //console.log(this.this._spriteDict['love_levelUpgradeProgress'])
+        this._spriteDict.love_level.methadata.alter_state()
 
     }
 }

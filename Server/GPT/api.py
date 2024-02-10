@@ -3,8 +3,10 @@ from DevChat import *
 from os import listdir
 from queue import Queue
 from markupsafe import escape
+from flask_cors import CORS
 app = Flask(__name__)
 
+CORS(app)
 class ChatInstance(Chat):
     # implementation of singleton pattern
     instance = None
@@ -47,18 +49,19 @@ def setModel(model):
     ChatInstance.saveBotSettings(settings)
     ChatInstance.reloadModel(chat_args)
     return VERBS['ok']
-@app.route("/api/<text>",methods=['POST'])# input text
+@app.route("/api/text/<text>",methods=['POST','GET'])# input text
 def generateText(text:str):
     if text in ["help","get_vdb","get_timer_vs","get_history","get_prompt"]:
-        return {"response":escape(commands(chat_instance=chat_instance,id_tool=text))}
-    #OUTPUT_MESSAGES.put(chat_instance.run(text))
-    #print(escape(OUTPUT_MESSAGES.get()))
-    rsp = escape(chat_instance.run(text))
-    print(rsp)
-    return {'response':rsp}#escape(chat_instance.run(text))}
+        return jsonify({"text":escape(commands(chat_instance=chat_instance,id_tool=text))})
+    #r sp = [ escape(x) for x in chat_instance.run(text)[-1]]# solo el ultimo mensaje
+    return jsonify({'text':chat_instance.run(text)[-1]})#escape(chat_instance.run(text))}
+@app.route("/api/max_intimacy")
+def getMaxIntimacy():
+    return {"max_level":chat_instance._prompt_document.intimacy.max_intimacyLevel}#['max_intimacyLevel']}
+    
 @app.route("/api/intimacy")
 def getIntimacy():
-    return jsonify({'intimacyLevel':chat_instance.intimacyLevel})
+    return jsonify({'intimacyLevel': chat_instance.intimacyLevel})
 @app.route("/api/intimacy/<int:intimacy>",methods=['POST'])
 def setIntimacy(intimacy:int):
     # actualizar intimidad dependiendo del desarollo o las partes tocadas
@@ -85,3 +88,6 @@ def notifyTouchZone(zone:str):
     # se insertara un prompt para notificar que se toco una parte del cuerpo
     
     return VERBS['ok']
+
+if __name__ == '__main__':
+    app.run(debug=True,port=5000)

@@ -17,6 +17,7 @@ sounddevice = "~=0.4.5"
 hyperdb-python = "*"
 nltk = "*"
 markupsafe = "*"
+flask-cors = "*"
 
 [dev-packages]
 

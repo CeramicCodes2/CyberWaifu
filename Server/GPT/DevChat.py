@@ -1,9 +1,12 @@
 #import gradio as gr
 #import torch
 from models import ModelLoader,ChatBotSettings,Settings,Google_trans,Baidu_trans,PromptDocument,join,Metadata,GenericPrompt,IntimacyData,levelPrompt
+
 from datetime import datetime
 from lemantizer import lemantize,lemantizeStr
+from random import choice
 import logging
+# from tools import EPM
 
 
 logging.basicConfig(
@@ -16,6 +19,62 @@ import os
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 TRANSFORMER_CHAT_FORMAT = {}
+START_MOTIONS = ["Tired"
+,"Sleepy"
+,"Scared"
+,"afraid"
+,"Terrified"
+,"Angry"
+,"Annoyed"
+,"embarrassed"
+,"Bored"
+,"Calm"
+,"Cheerful"
+,"Confused"
+,"merry"
+,"Depressed"
+,"Disappointed"
+,"Dizzy"
+,"Frustrated"
+,"Drunk"
+,"Envious"
+,"Furious"
+,"Worried"
+,"Comfortable"
+,"Uncomfortable"
+,"Upset"
+,"Thirsty"
+,"excited"
+,"Thoughtful"
+,"pensive"
+,"Thankful"
+,"Surprised"
+,"Sick"
+,"ill"
+,"Sad"
+,"Amazed"
+,"Shocked"
+,"Relaxed"
+,"Relieved"
+,"Proud"
+,"Pleased"
+,"Optimistic"
+,"Nervous"
+,"Lonely"
+,"Jealous"
+,"Lovely"
+,"Hurt"
+,"Lazy"
+,"Hungry"
+,"Impressed"
+,"Guilty"
+,"Hopeful"
+,"Grateful"
+,"Excited"
+,"Indifferent"
+,"Humiliated"
+,"Insecure"]
+# emociones que ranni puede sentir al iniciar el modelo
 
 def register_transformer_chat(template_name:str):
     def callback(function):
@@ -53,39 +112,15 @@ Continuing from the previous conversation, write what {character_name} says to {
 #from typing import Any, Dict, Iterator, List, Optional, Tuple, Union, Protocol
 #import llama_cpp.llama_types as llama_types
 #from llama_cpp.llama_chat_format import register_chat_format,ChatFormatterResponse,_get_system_message,_map_roles,_format_chatml
-def cute_print(name,age):
-    print(name,age)
-
-'''
-from models import ModelDescription,EventPrompt
 
 
 
-class Tool:
-    def __init__(self,tool_path:str,text_generator:str):
-        self.testTool = [
-            EventPrompt(
-                name='have sex with {user_prefix}',
-                description='Things between {user_prefix} and {ia_prefix}  are getting horney',
-                models=[
-                    ModelDescription(
-                        model_name='Blowjob',
-                        description='make a blowjob to {user_prefix}',
-                        expressions_description={
-                            '':''    
-                        },
-                        model_motions_description={},
-                        emotions_associed={},
-                        promptModel=[]
-                        
-                    )
-                ],
-                promptEvent='{ia_prefix} and {user_prefix} go to a date'
-            )
-        ]
-    def createPrompt(self):
-        pass
-'''
+# from models import 
+
+
+
+
+
 class Chat:
     def __init__(self, message_history=[],inject_chat_prompt=True):
         self.load_settings()
@@ -101,12 +136,13 @@ class Chat:
         self._prompt = ''
         self._memories_message = ''
         self.use_llama = False
+        self._firstLoad:bool = True
         
         self._chat_injection_Prompt = False# use cuando ya se haya inyectado el prompt en el caso de usar create_chat
         # para asegurarse de solo injectar el prompt una vez
         self.generator:pipeline|Llama|None = None
         #self._database = None
-        self._expression = None
+        self._expression = []
         self._live2dmodel = None
         # intimacy levels
         
@@ -116,6 +152,7 @@ class Chat:
         self._level_index:int =  0 
         # evitara re uzar el algoritmo quickshort multiples veces 
         self._prp = None
+        self.gblock:str = []
         # se utilizara para inyectar prompts en la parte del generador
         for message_pairs in message_history:
             message1, message2 = message_pairs
@@ -129,24 +166,7 @@ class Chat:
         self._database.createDocument(arg)
         # save data
     def transformer_backend(self):
-        from transformers import pipeline,GenerationConfig 
-        generation_config = GenerationConfig(
-            temperature=self._chatSettings.temperature,
-            top_p=self._chatSettings.top_p,
-            top_k=self._chatSettings.top_k,
-            do_sample=True,
-            num_beams = self._chatSettings.num_beams,
-            early_stopping=self._chatSettings.early_stopping,
-            repetition_penalty=self._chatSettings.repetition_penalty,
-            #temperature=temperature,
-            #top_p=top_p,
-            #top_k=top_k,
-            #num_beams=num_beams,
-            #early_stopping=True,
-            #repetition_penalty=repetition_penalty,
-        )
-        #model = LlamaForCausalLM.from_pretrained(model=self._chatSettings.model_path,config=GenerationConfig,load_in_8bit=self._chatSettings.load_in_8bit)
-        #tokenizer = LlamaTokenizer.from_pretrained(model=self._cha)
+        from transformers import pipeline
         self.generator = pipeline('text-generation',
                                   do_sample=True,
                                   model=self._chatSettings.model_path,
@@ -219,7 +239,8 @@ class Chat:
                                n_ctx=self._chatSettings.max_new_tokens
                                )
         
-        self.text_completation = lambda prompt,option: self.ugenerator(prompt=prompt,**self._summarizator_model_configs) if option else self.ugenerator(prompt=prompt,**self._sentymental_model_configs)
+        self.text_completation = lambda prompt,option: self.ugenerator(prompt=prompt,**self._summarizator_model_configs) if option else self.ugenerator(prompt=prompt,**self._sentymental_model_configs) if isinstance(option,bool) else self.ugenerator(prompt=prompt,temperature=0.7,min_p=120)
+        
         # True -> summarizar False -> sentimental configs
         #self.cg = self.ugenerator.create_chat_completion(messages,temperature=self._chatSettings.temperature,top_p=self._chatSettings.top_p,top_k=self._chatSettings.top_k)
         self.generator = lambda messages: self.ugenerator.create_chat_completion(messages,temperature=self._chatSettings.temperature,top_p=self._chatSettings.top_p,top_k=self._chatSettings.top_k)
@@ -264,7 +285,20 @@ class Chat:
                 self.text_completation = lambda prompt,option: self.ugenerator(prompt=prompt,**self._summarizator_model_configs) if option else self.ugenerator(prompt=prompt,**self._sentymental_model_configs)
                 self.generator = lambda messages: chat_solve
                 self.evaluate = self.llama_evaluate
-        self.resolve_backend = lambda pre_summary,use_llama,option: self.text_completation(prompt=pre_summary,option=option) if use_llama else self.generator(pre_summary)      
+        self.resolve_backend = lambda pre_summary,use_llama,option: self.text_completation(prompt=pre_summary,option=option) if use_llama else self.generator(pre_summary)
+        #self.eventBackendResolver = lambda pre_prompt,use_llama: self.ugenerator(prompt=pre_prompt,**self._EventToolSelector_configs) if use_llama else self.generator(pre_prompt)
+        #self.tools = EPM(prompt_EventToolSelector=self._prompt_EventToolSelector,prompt_document=self._prompt_document,text_generator=self.eventBackendResolver)
+        # TODO:
+        # usado pero para eventos
+    #def eventPrompt(self,messages:str):
+    #    ''' procesador de eventos (funciona de forma similar al stuff sumarizator) '''
+    #    
+    #    print(self.tools.InferenceWithTextGenerator(
+    #        messages=messages,
+    #        use_llama=self.use_llama,
+    #        current_level=getattr(self._prompt_document.intimacy,self.dctNum[self._current_level])
+    #    ))
+        
     def load_settings(self):
         with ModelLoader("bot_settings.json",ChatBotSettings) as model:
             self._chatSettings = model
@@ -290,12 +324,14 @@ class Chat:
             #self._oldIntimacy:IntimacyData = self._prompt_document.intimacy
             #self._prompt_document.intimacy.dict2Level()
             # volvemos de diccionario a nivel
-            
+        with ModelLoader(configuration_name=self._chatSettings.full_event_or_tool_selector,ModelClass=GenericPrompt,no_join_config_file_path=True) as ml:
+            self._prompt_EventToolSelector = ml.prompt
+            self._EventToolSelector_configs = ml.model_configs
+        
         # INIT DATABASE
         if not(self._chatSettings.use_vectorStoragedb):
             self._database = None
             return 0
-            
         handler = None
         if self._chatSettings.vectorStorageBackend == 'Chromadb':
             from models import ChomaDBHandler,ChromaDb,ChromaDbClient
@@ -427,11 +463,6 @@ class Chat:
         # guardamos con todo y nivel de intimidad anterior por que ? para que no nos mueva los indices por eliminar un valor
         logging.info('inyecting level prompt')
         logging.info(self.message_history)
-        
-        
-    
-            
-        
     @property
     def intimacyLevel(self):
         return self._prompt_document.intimacy_level
@@ -445,24 +476,32 @@ class Chat:
             
             self._prompt_document.intimacy_level += response
     @property
-    def expression(self):
+    def expression(self) ->list[str]:
         ''' 
         despues de extraer un dato se debe de llamar al deleter
         esto es para que en la proxima consulta que realize el front no emita continuamente la expresion
         
         '''
-        del self.expression
-        return self._expression
+        if self._expression:
+            expr = self._expression[0]
+            
+            del self.expression
+            return expr
+        return []
     @expression.setter
     def expression(self,arg:str):
         if arg:# si la expresion no es un false
-            self._expression = arg
+            self._expression.append(arg)
             return
-        del self.expression
-        # si la expresion a colocar es falso se setea la que es por defecto
+        
     @expression.deleter
     def expression(self):
-        self._expression = self._prompt_document.motions.default_expression
+        # deleter eliminara el elemento extraido
+        if len(self._expression) !=0:
+            self._expression.pop(0)# FIFO
+            return
+        
+        
     @property
     def live2dModel(self):
         
@@ -490,13 +529,16 @@ class Chat:
         fe = [x for x in self.searchMapCoincidence(self._prompt_document.motions.map_feelingExpressions,word)]
         fm = [x for x in self.searchMapCoincidence(self._prompt_document.motions.map_feelingModel,word)]
         print(fe,fm)
-        if len(fe) == 0:
-            self.expression = False
+           
+        if len(fe) == 0: # deug only
+            #self.expression = False
             logging.info(f'no emiting expresion')
         if len(fm) == 0:
             self.live2dModel = False
             logging.info(f'no emiting motion')
         for em in fe:
+            # TODO: modificar expression y live2dModel a una pila no a una vareable apra ir vaciando valores cada que el front 
+            # compruebe si existe una nueva emosion o expresion
             self.expression = em
             logging.info('emmotion emmited !')
         for m in fm:
@@ -582,8 +624,11 @@ class Chat:
             #print("CALLING SUMMARIZATOR")
             logging.info('CALLING SUMMARIZATOR')
             
+            
             self.summarizator(use_llama=self.use_llama)
             self.sentimental_analysis(self.storage_hook)
+            
+            #self.eventPrompt(messages=self.gblock)
             
             if self._chatSettings.use_vectorStoragedb:
                 [ [metha.extend([x.get("methadata",False),y.get("methadata",False)]),doc.extend([f"{x['role']}: {x['content']}",f"{y['role']}: {y['content']}"])] for x,y in self.storage_hook]
@@ -659,6 +704,7 @@ class Chat:
             # si no es el bk transformers o si se indica que se use un modelo especifico
             return self.transformerSpecializedSentymentalAnalysis(conversation)
         for x,y in conversation:
+            # TODO: REFACT THIS!
             #print(self.pairRegister2Block(x,y))
             lysis = self.conv_analysis(self.pairRegister2Block(x,y))
             conversation["methadata"]["sentimental_conversation"] = lysis[0]
@@ -672,6 +718,7 @@ class Chat:
         if self.use_llama:
             response = response["choices"][0]["message"]["content"]
         self.extractSpecialWords(response)
+        
         self.message_history.append(
             (
                 {"role": self.user_alias, "content": message},
@@ -716,7 +763,9 @@ class Chat:
         gblock = []
         for x,y in self.storage_hook:
             gblock.extend(self.pairRegister2Block(x,y))
+            
         gblock = ' \n'.join(gblock)
+        self.gblock = gblock# para otras operaciones que requeran el hisotrial como bloque
         pre_summary = self._prompt_summarizator.format(messages=gblock,ia_prefix=self._prompt_document.ia_prefix,user_prefix=self._prompt_document.user_prefix)
         logging.error(pre_summary)
         #resolve_backend = lambda use_llama,option: self.text_completation(prompt=pre_summary,option=option) if use_llama else self.generator(pre_summary)
@@ -742,6 +791,38 @@ class Chat:
         #print(self.storage_hook)
         
         pass
+    def randomInitSentimental(self,prompt:list[dict[str,str]]|str,genFunction) -> str:
+        # retorna un sentimiento aleatorio al iniciar el llm tambien le piede a la IA 
+        # que genere una respuesta aleatorea o que genere unnmotivo por el cual se siente asi por ejemplo "no me llevaste de cita"
+        # o "olvidaste mi cumplea;os" 
+        
+        # TODO: CREAR NOTIFICACIONES QUE DIGAN EL ESTADO DE ANIMO DE LA WAIFU
+        fselected = choice(START_MOTIONS)
+        print(f"CHOICE SELECTED: {fselected}")
+        """
+        sysBlock = []
+        # right now {self.character_name} feels {fselected} generates a reason why {i} feels that way
+        cc = f"\n right now {self.character_name} feels {fselected} generates a reason why {self.character_name} feels that way"
+        if self.use_llama:
+            prompt.append({"role":"system","content":cc})
+            for x in prompt:
+                # colapsamos
+                
+                sysBlock.append(f"{x['role']}: {x['content']}")
+            prompt = '\n'.join(sysBlock)
+        else:
+            prompt += cc
+        logging.error(prompt)
+        res = self.resolve_backend(pre_summary=prompt,option=3,use_llama=self.use_llama)
+        print(res)
+        if self.use_llama:
+            res = res["choices"][0]["text"]
+        else:
+            res = res[0]['generated_text']"""
+            
+        return f"something has happened and {self.character_name} feels {fselected}"
+        # diferente de bool usara una configuracion que no sea ni summary ni sentymental
+
     def sentymental(self):
         '''
         sentymental analysis
@@ -760,9 +841,9 @@ class Chat:
     def databasec(self):
         return self._database
     def llama_injectExamples(self,main_dct):
-        logging.info("TEXT EXAMPLE".center(50,"-"))
-        logging.warn(type(self._prompt_document.text_example))
-        logging.info(self._prompt_document.text_example)
+        # logging.info("TEXT EXAMPLE".center(50,"-"))
+        # logging.warn(type(self._prompt_document.text_example))
+        # logging.info(self._prompt_document.text_example)
         if not isinstance(self._prompt_document.text_example,str):
             logging.warn('USING NOT STR OPTION'.center(10,'-'))
             main_dct.append({"role":"system","content":"The following are comments that Ranni would say:"})
@@ -803,8 +884,21 @@ class Chat:
             # solo se a;ade si no es None
         main_dct.append({"role":"system","content":sysHist})
         main_dct.extend(self.pair2tuple(message_history))
-        
+        if st:=self.get_least_message():
+            
+            main_dct.extend(st)
+        # print(self.database)
         main_dct.append({"role":"system","content":usrIndication})
+        if self._firstLoad:
+            mcpy = main_dct.copy()
+            result = self.randomInitSentimental(mcpy,self.generator)
+            #logging.info("SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS")
+            #logging.error(result)
+            main_dct.append({"role":"system","content":result})
+            
+            self._firstLoad = False
+            #print(main_dct)
+            del mcpy 
         main_dct.append({"role":self.user_alias,"content":usrInput})
         logging.info('messages system dict')
         logging.info(main_dct)
@@ -819,10 +913,43 @@ class Chat:
             lstdct.append(x)
             lstdct.append(y)
         return lstdct
+    #def getLeastMessageDB(self):
+    #    self.database.get(key=self.database.collection.count())
+    def get_least_message(self) ->tuple[str]|str:
+        # obtiene el ultimo segmento o mensaje para seguir con la conversacion
+        convertDoc2dict = lambda document: [r for r in [ self.convertDocument2History(e) for e in document  ] if r != None]
+        if not(self._firstLoad) or not(self.database):
+            return False# solo funciona la primera carga
+        pair = self.database.getLeastMessage(least_messages=4)
+        if not(pair):
+            return
+        #  BUG: WHEN USE THE TOOL SELECTOR THE DATABASE SAVES THE DATA IT DOSENT BE RELEVANT NEED TO DROP IT
+        prp = ''
+        msg = []
+        for x,y in pair:
+            if self.use_llama:
+                #print(x['documents'],y['documents'])
+                ld,lq = convertDoc2dict(x['documents']),convertDoc2dict(y['documents'])
+                if len(ld) == 0 and len(lq) == 0:
+                    continue# ignoramos si no hay datos
+                msg.append({"role":'system',"content":x['metadatas'][0]["sumarization"]})
+                if ld:
+                    msg.extend(ld)
+                if lq:
+                    msg.extend(lq)
+                continue # terminamos
+            prp += f'system: {x["metadatas"][0]["sumarization"]} \n'
+            prp += x['documents'] + '\n' + y['documents']
+        if self.use_llama:
+            return msg
+        return prp
     @staticmethod
     def convertDocument2History(memorie):
-        role,content = memorie.split(':')[0]
-        return {"role":role,"content":content}      
+        m = memorie.split(':')# [0]
+        if len(m) == 2:
+            role,content = m
+            return {"role":role,"content":content}
+        # aquellos que no son 2 elementos son ignorados   
     def process_memories(self,main_dct,message):
         memories = self._database.extractChunkFromDB(message=message)
         if memories  == {}:
@@ -972,6 +1099,9 @@ if __name__ == "__main__":#
                 continue
             case 'help':
                 print('\n'.join(["get_vdb","get_timer_vs","get_history","get_prompt"]))
+                continue
+            case 'show_expression':
+                print(chat_instance.expression)
                 continue
             case '':
                 continue

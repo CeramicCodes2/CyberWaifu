@@ -1,0 +1,32 @@
+{
+    "name": "intimacy",
+    "description": "make affectionate gestures with {user_prefix}",
+    "models": [
+        {
+            "model_name": "kiss",
+            "description": "give a kiss to {user_prefix}",
+            "model_live2dId": "kiss",
+            "expressions_description": {
+                "orgasm face": {
+                    "description": "lift right tab",
+                    "id_expression": "exp"
+                }
+            },
+            "model_motions_description": {
+                "hug": {
+                    "description": "hug the {user_prefix} face",
+                    "id_motion": "11.mtn"
+                }
+            },
+            "emotions_associed": [
+                "love",
+                "desire"
+            ],
+            "promptModel": ""
+        }
+    ],
+    "actionsAssociated": [
+        "kiss"
+    ],
+    "promptEvent": ""
+}
