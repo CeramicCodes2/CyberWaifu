@@ -14,7 +14,10 @@
             "raise left eyebrow":"11",
             "raise right eyebrow":"12",
             "smile":"24",
-            "blush":"72"
+            "blush":"03.exp.json",
+            "sad":"07.exp.json",
+            "close eye":"05.exp.json",
+            "open eye":"51.exp.json"
         },
         "map_feelingModel": {
             "hug":"hug model",
