@@ -105,11 +105,49 @@ flask --app api run
 | `"trans-opt"`  | `"zh"` `"cht"` `"jp"` `"kor"`, etc. or `null` | 翻译输出。调用WebAPI翻译生成的文本为`指定语言`（使用百度翻译，需在`config/api.json`中填写您的APPID和密钥）https://api.fanyi.baidu.com/doc/21         |
 | `"trans-opt2"` | `"zh"` `"cht"` `"jp"` `"kor"`, etc. or `null` | 第二种语言翻译输出。调用WebAPI翻译生成的文本为`指定语言`（使用百度翻译，需在`config/api.json`中填写您的APPID和密钥）https://api.fanyi.baidu.com/doc/21    |
 
+
+### config/bot_settings.json
+for example let's use the calypso model:
+```json
+{
+    "backend": "llamacpp",
+    "vectorStorageBackend": "HyperDB",
+    "chat_buffer_size": 20,
+    "prompt_document": "ranni.json",
+    "full_prompt_document": "prompt_paths/ranni.json",
+    "prompt_summarization_document": "summarization.json",
+    "prompt_sentymental_analysis_document": "sentymental.json",
+    "full_sentymental_analysis_document": "prompt_paths/sentymental.json",
+    "full_summarization_document": "prompt_paths/summarization.json",
+    "full_event_or_tool_selector":"prompt_paths/EventToolPrompt.json",
+    "use_vectorStoragedb": true,
+    "use_summarysation": true,
+    "use_sentymental_analysis":true,
+    "max_sumarization_lengt": 100,
+    "min_sumarization_lengt": 20,
+    "chat_format":"snoozy_dev",
+    "model_path": "model/calypso.gguf",
+    "temperature": 0.7,
+    "top_p": 0.95,
+    "top_k": 40,
+    "num_beams": 50,
+    "max_new_tokens": 2512,
+    "repetition_penalty": 1,
+    "early_stopping": true,
+    "load_in_8bit": false,
+    "hook_storage": 2,
+    "vector_storage_configuration_file": "hyperdb_config.json",
+    "specialized_sentymental_model":"distilbert-base-uncased-go-emotions-student",
+    "processEveryIaMessageAfterInference":true,
+    "use_specialized_model":true
+}
+```
 ### config/api.json
 
 appid & key for baidu translator
 
 Ref. [百度翻译开放平台](https://api.fanyi.baidu.com/manage/developer)
+
 
 ## API Manual
 
